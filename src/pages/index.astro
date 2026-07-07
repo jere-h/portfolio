@@ -26,12 +26,9 @@ const grid = projects.filter((p) => !p.featured);
           class="mx-auto max-w-5xl px-5 py-12 sm:py-16"
           aria-labelledby="featured-heading"
         >
-          <div class="mb-8" data-reveal>
-            <p class="eyebrow">Featured</p>
-            <h2 id="featured-heading" class="mt-2 text-2xl font-semibold sm:text-3xl">
-              Projects I keep coming back to
-            </h2>
-          </div>
+          <h2 id="featured-heading" class="eyebrow mb-6" data-reveal>
+            Featured
+          </h2>
 
           <div class="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
             {featured.map((project, i) => (
@@ -53,12 +50,9 @@ const grid = projects.filter((p) => !p.featured);
           class="mx-auto max-w-5xl px-5 pb-20 sm:pb-24"
           aria-labelledby="selected-heading"
         >
-          <div class="mb-8" data-reveal>
-            <p class="eyebrow">Selected work</p>
-            <h2 id="selected-heading" class="mt-2 text-2xl font-semibold sm:text-3xl">
-              More things I have built
-            </h2>
-          </div>
+          <h2 id="selected-heading" class="eyebrow mb-6" data-reveal>
+            Selected work
+          </h2>
 
           <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 sm:gap-6">
             {grid.map((project, i) => (

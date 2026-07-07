@@ -18,6 +18,12 @@ export interface ProjectConfig {
   description: string;
   /** Larger card, rendered in the Featured row when true. */
   featured: boolean;
+  /**
+   * Optional thumbnail override (a path under public/, or an absolute URL).
+   * When omitted, the card uses public/thumbnails/<repo>.png. Regenerate the
+   * default screenshots with `node scripts/screenshots.mjs`.
+   */
+  thumbnail?: string;
 }
 
 export interface SocialLinks {
@@ -98,4 +104,16 @@ export function demoUrl(repo: string): string {
 /** Canonical GitHub URL for a repo. */
 export function repoUrl(repo: string): string {
   return `https://github.com/${owner}/${repo}`;
+}
+
+/**
+ * Resolve a project's card thumbnail to a base-aware URL. Uses the project's
+ * `thumbnail` override when set, otherwise the committed screenshot at
+ * public/thumbnails/<repo>.png. Absolute URLs (http...) pass through unchanged.
+ */
+export function thumbUrl(project: ProjectConfig, baseUrl: string): string {
+  const base = baseUrl.replace(/\/$/, "");
+  const rel = project.thumbnail ?? `thumbnails/${project.repo}.png`;
+  if (/^https?:\/\//.test(rel)) return rel;
+  return `${base}/${rel.replace(/^\//, "")}`;
 }

@@ -48,8 +48,24 @@ page. Each entry:
   larger cards up top; the rest fill the responsive grid below.
 
 `title` and `description` in this file always win over whatever GitHub returns.
-The live numbers (stars, forks, language dot, "updated N ago") come from the
-build-time fetch, described below.
+The live language dot and "updated N ago" date come from the build-time fetch,
+described below.
+
+### Project thumbnails
+
+Each card shows a screenshot of the project's live demo. Images live in
+`public/thumbnails/<repo>.png` and are committed. To point a project at a
+different image, set its optional `thumbnail` field in `config.ts` (a path
+under `public/`, or an absolute URL). To regenerate the default screenshots
+from the live demos:
+
+```bash
+npm i -D playwright-core   # one-off; not a runtime dependency
+node scripts/screenshots.mjs
+```
+
+If an image is missing, the card falls back to a warm gradient, so the layout
+never breaks.
 
 ### Personal info
 
