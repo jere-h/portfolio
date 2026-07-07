@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# astro build intermediate (built site is synced to repo root for Pages "deploy from branch")
+dist/
+.astro/
+
+# generated types
+env.d.ts
+
+# logs / os
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+.idea/
