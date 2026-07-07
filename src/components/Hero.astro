@@ -1,0 +1,92 @@
+---
+import { profile } from "../config";
+import Icon from "./Icon.astro";
+---
+
+<section
+  class="relative isolate overflow-hidden px-5 pt-20 pb-16 sm:pt-24 sm:pb-20"
+  aria-labelledby="hero-name"
+>
+  <!-- warm orb: the one decorative flourish, hero only -->
+  <div class="hero-orb" aria-hidden="true"></div>
+
+  <div class="mx-auto flex max-w-4xl flex-col items-start gap-8 sm:flex-row sm:items-center sm:gap-12">
+    <img
+      src={profile.avatarUrl}
+      alt={`${profile.name}`}
+      width="132"
+      height="132"
+      loading="eager"
+      decoding="async"
+      class="h-28 w-28 shrink-0 rounded-pill border border-border bg-surface object-cover shadow-md sm:h-33 sm:w-33"
+      data-reveal
+    />
+
+    <div class="min-w-0" data-reveal data-reveal-delay="1">
+      <p class="eyebrow flex items-center gap-1.5">
+        <Icon name="pin" size={14} />
+        {profile.location}
+      </p>
+
+      <h1
+        id="hero-name"
+        class="mt-2 text-4xl font-semibold sm:text-5xl"
+      >
+        {profile.name}
+      </h1>
+
+      <p class="mt-2 text-lg font-medium text-accent sm:text-xl">
+        {profile.tagline}
+      </p>
+
+      <p class="mt-4 max-w-xl text-base leading-relaxed text-muted sm:text-lg">
+        {profile.bio}
+      </p>
+
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a
+          href={profile.socials.github}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-fg shadow-sm transition-colors duration-200 hover:bg-sand focus-visible:outline-none"
+        >
+          <Icon name="github" size={18} />
+          GitHub
+        </a>
+        <a
+          href={`mailto:${profile.email}`}
+          class="inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-fg shadow-sm transition-colors duration-200 hover:bg-sand focus-visible:outline-none"
+        >
+          <Icon name="mail" size={18} />
+          Email
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero-orb {
+    position: absolute;
+    z-index: -1;
+    top: -30%;
+    right: -10%;
+    width: min(46rem, 90vw);
+    height: min(46rem, 90vw);
+    pointer-events: none;
+    border-radius: 999px;
+    filter: blur(80px);
+    opacity: 0.5;
+    background: radial-gradient(
+      circle at 50% 42%,
+      #ffd9a8 0%,
+      #f7849b 34%,
+      #e8557f 62%,
+      #a93a8f 100%
+    );
+  }
+
+  :global(:root.dark) .hero-orb {
+    opacity: 0.32;
+  }
+</style>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Jeremy Huang">
+  <defs>
+    <radialGradient id="orb" cx="38%" cy="34%" r="80%">
+      <stop offset="0%" stop-color="#ffd9a8"/>
+      <stop offset="38%" stop-color="#f7849b"/>
+      <stop offset="68%" stop-color="#e8557f"/>
+      <stop offset="100%" stop-color="#a93a8f"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#orb)"/>
+  <text x="50%" y="52%" dominant-baseline="central" text-anchor="middle"
+        font-family="ui-monospace, Menlo, Consolas, monospace" font-size="34"
+        font-weight="700" fill="#ffffff">jh</text>
+</svg>

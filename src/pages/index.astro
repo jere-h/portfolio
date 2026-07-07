@@ -1,0 +1,78 @@
+---
+import Base from "../layouts/Base.astro";
+import Header from "../components/Header.astro";
+import Hero from "../components/Hero.astro";
+import Footer from "../components/Footer.astro";
+import ProjectCard from "../components/ProjectCard.astro";
+import { projects } from "../config";
+import { getRepoMeta } from "../lib/github";
+
+// Build-time fetch (fresh where reachable, cached fallback otherwise).
+const meta = await getRepoMeta();
+
+const featured = projects.filter((p) => p.featured);
+const grid = projects.filter((p) => !p.featured);
+---
+
+<Base>
+  <Header />
+
+  <main id="main">
+    <Hero />
+
+    {
+      featured.length > 0 && (
+        <section
+          class="mx-auto max-w-5xl px-5 py-12 sm:py-16"
+          aria-labelledby="featured-heading"
+        >
+          <div class="mb-8" data-reveal>
+            <p class="eyebrow">Featured</p>
+            <h2 id="featured-heading" class="mt-2 text-2xl font-semibold sm:text-3xl">
+              Projects I keep coming back to
+            </h2>
+          </div>
+
+          <div class="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
+            {featured.map((project, i) => (
+              <ProjectCard
+                project={project}
+                meta={meta[project.repo]}
+                featured
+                delay={(i + 1) as 1 | 2}
+              />
+            ))}
+          </div>
+        </section>
+      )
+    }
+
+    {
+      grid.length > 0 && (
+        <section
+          class="mx-auto max-w-5xl px-5 pb-20 sm:pb-24"
+          aria-labelledby="selected-heading"
+        >
+          <div class="mb-8" data-reveal>
+            <p class="eyebrow">Selected work</p>
+            <h2 id="selected-heading" class="mt-2 text-2xl font-semibold sm:text-3xl">
+              More things I have built
+            </h2>
+          </div>
+
+          <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 sm:gap-6">
+            {grid.map((project, i) => (
+              <ProjectCard
+                project={project}
+                meta={meta[project.repo]}
+                delay={((i % 3) + 1) as 1 | 2 | 3}
+              />
+            ))}
+          </div>
+        </section>
+      )
+    }
+  </main>
+
+  <Footer />
+</Base>

@@ -1,0 +1,21 @@
+---
+import { langColor } from "../lib/format";
+
+interface Props {
+  language: string | null;
+}
+const { language } = Astro.props;
+---
+
+{
+  language && (
+    <span class="inline-flex items-center gap-1.5 text-sm text-muted">
+      <span
+        class="inline-block h-2.5 w-2.5 rounded-pill"
+        style={`background:${langColor(language)}`}
+        aria-hidden="true"
+      />
+      <span>{language}</span>
+    </span>
+  )
+}
