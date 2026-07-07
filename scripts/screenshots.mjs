@@ -56,10 +56,25 @@ async function clickButton(page, name) {
   return false;
 }
 
-// Per-repo steps to reach a screenshot-worthy state. Default: just settle.
+/** Click the first visible button / link / control matching a text regexp. */
+async function clickText(page, re, timeout = 2500) {
+  const el = page.locator("button,a,[role=button]").filter({ hasText: re }).first();
+  if (await el.count()) {
+    await el.click({ timeout }).catch(() => {});
+    await page.waitForTimeout(600);
+    return true;
+  }
+  return false;
+}
+
+// Per-repo steps to reach a screenshot-worthy state. Each drives the app to a
+// view that actually shows what it does, rather than an empty landing.
+// Default: just settle. Returns nothing; the caller screenshots the viewport.
 const PREP = {
   "undergrad-paths-map": async (page) => {
-    // Select a coherent set of courses so the career-path network lights up.
+    // Select a coherent set of courses so the career-path network lights up,
+    // then scroll down so the chart fills the frame (the "Open Doors" title
+    // sits right above the card, so it is dropped from the shot).
     const picks = [
       "Intro to Programming",
       "Data Structures and Algorithms",
@@ -75,6 +90,14 @@ const PREP = {
       }
     }
     await page.waitForTimeout(1300);
+    await page.evaluate(() => window.scrollTo(0, 300));
+    await page.waitForTimeout(500);
+  },
+  "idea-collider": async (page) => {
+    // Start the deck, then reveal the connection between the two concepts.
+    await clickText(page, /Start swiping/);
+    await clickText(page, /^Reveal$/);
+    await page.waitForTimeout(700);
   },
   "skin-concept-arena": async (page) => {
     // Dismiss the intro tour, load sample data, open the head-to-head Arena.
@@ -83,6 +106,24 @@ const PREP = {
     await clickButton(page, "Skip tour");
     await clickButton(page, "Arena");
     await page.waitForTimeout(1400);
+  },
+  "travel-encounters-playbook": async (page) => {
+    // Open a specific scenario so the interaction outline shows.
+    await clickText(page, /Tokyo/);
+    await clickText(page, /Convenience Store/);
+    await page.waitForTimeout(700);
+  },
+  "the-ordeal": async (page) => {
+    // Play a scenario to the end so the verdict screen shows.
+    await clickText(page, /The dashboard nobody used/);
+    for (let i = 0; i < 3; i++) {
+      const choice = page.locator("button").filter({ hasText: /.{15,}/ }).first();
+      if (await choice.count()) {
+        await choice.click().catch(() => {});
+        await page.waitForTimeout(700);
+      }
+    }
+    await page.waitForTimeout(700);
   },
 };
 
