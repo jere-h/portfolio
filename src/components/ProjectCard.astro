@@ -26,13 +26,16 @@ const source = repoUrl(repo);
 const thumb = thumbUrl(project, import.meta.env.BASE_URL);
 ---
 
+<!-- Reveal lives on the wrapper so the entrance transform never fights the
+     pointer module's tilt transform on the card itself. -->
+<div data-reveal data-reveal-delay={delay || undefined} class="h-full">
 <article
-  data-reveal
-  data-reveal-delay={delay || undefined}
+  data-tilt
+  data-glow
   class:list={[
-    "group flex h-full flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-sm",
+    "group relative flex h-full flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-sm",
     "transition duration-300 ease-[cubic-bezier(.32,.72,0,1)]",
-    "hover:-translate-y-0.5 hover:shadow-md hover:border-accent/40",
+    "hover:shadow-md hover:border-accent/40",
   ]}
 >
   <!-- Live app screenshot. Warm gradient sits behind as a graceful fallback. -->
@@ -95,6 +98,7 @@ const thumb = thumbUrl(project, import.meta.env.BASE_URL);
         href={live}
         target="_blank"
         rel="noopener noreferrer"
+        data-magnetic
         class="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-on-accent shadow-sm transition-[transform,box-shadow] duration-200 hover:shadow-md active:translate-y-px focus-visible:outline-none"
         aria-label={`Open the live demo of ${title}`}
       >
@@ -106,6 +110,7 @@ const thumb = thumbUrl(project, import.meta.env.BASE_URL);
         href={source}
         target="_blank"
         rel="noopener noreferrer"
+        data-magnetic
         class="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-fg transition-colors duration-200 hover:bg-sand focus-visible:outline-none"
         aria-label={`View ${title} on GitHub`}
       >
@@ -115,3 +120,4 @@ const thumb = thumbUrl(project, import.meta.env.BASE_URL);
     </div>
   </div>
 </article>
+</div>

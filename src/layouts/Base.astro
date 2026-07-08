@@ -99,5 +99,19 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
         });
       })();
     </script>
+
+    <!--
+      Pointer physics (glow borders, card tilt, magnetic buttons). Only
+      fetched on fine-pointer devices with motion allowed - touch and
+      reduced-motion visitors never pay for the module.
+    -->
+    <script>
+      if (
+        window.matchMedia("(pointer: fine)").matches &&
+        window.matchMedia("(prefers-reduced-motion: no-preference)").matches
+      ) {
+        import("../scripts/pointer").then((m) => m.initPointer());
+      }
+    </script>
   </body>
 </html>
