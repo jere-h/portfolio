@@ -37,8 +37,16 @@ uniform vec3 u_c2;
 uniform vec3 u_c3;
 uniform vec3 u_bg;
 uniform float u_strength;
+uniform float u_chaos;
 
 vec3 permute(vec3 x) { return mod(((x * 34.0) + 1.0) * x, 289.0); }
+
+// Rodrigues rotation of a color around the luminance diagonal = hue spin.
+vec3 hueSpin(vec3 color, float a) {
+  const vec3 k = vec3(0.57735);
+  float c = cos(a);
+  return color * c + cross(k, color) * sin(a) + k * dot(k, color) * (1.0 - c);
+}
 
 float snoise(vec2 v) {
   const vec4 C = vec4(0.211324865405187, 0.366025403784439,
@@ -79,14 +87,18 @@ void main() {
     snoise(p * 0.9 + vec2(t, -t * 0.7)),
     snoise(p * 0.9 + vec2(-t * 0.8, t) + 7.3)
   );
-  p += drift * 0.38 + (ptr - p) * pi * 0.35;
+  p += drift * (0.38 + u_chaos * 0.55) + (ptr - p) * pi * 0.35;
 
-  float f = snoise(p * 1.15 + t * 0.5) * 0.62 + snoise(p * 2.6 - t * 0.9) * 0.38;
+  float freq = 1.0 + u_chaos * 1.4;
+  float f = snoise(p * 1.15 * freq + t * 0.5) * 0.62 + snoise(p * 2.6 * freq - t * 0.9) * 0.38;
   f = f * 0.5 + 0.5;
 
   vec3 col = mix(u_c0, u_c1, smoothstep(0.05, 0.45, f));
   col = mix(col, u_c2, smoothstep(0.40, 0.72, f));
   col = mix(col, u_c3, smoothstep(0.68, 0.98, f));
+
+  // Chaos mode: cycle the whole ramp around the hue wheel.
+  col = hueSpin(col, u_chaos * u_time * 1.4);
 
   // Composition: the light lives top-right (where the orb lived) and
   // melts into the page background elsewhere; the cursor drags a little
@@ -95,10 +107,10 @@ void main() {
   float d = distance(vec2(uv.x * aspect, uv.y), focus);
   float mask = 1.0 - smoothstep(0.05, 1.15, d);
   mask += snoise(p * 0.75 - t) * 0.08;
-  mask = clamp(mask + pi * 0.30, 0.0, 1.0);
-  mask *= smoothstep(0.0, 0.30, uv.y);
+  mask = clamp(mask + pi * 0.30 + u_chaos * 0.55, 0.0, 1.0);
+  mask *= smoothstep(0.0, max(0.30 * (1.0 - u_chaos), 0.001), uv.y);
 
-  vec3 outc = mix(u_bg, col, mask * u_strength);
+  vec3 outc = mix(u_bg, col, mask * mix(u_strength, 0.9, u_chaos));
 
   // Blue-noise-ish dither so the soft ramps never band.
   float dn = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
@@ -185,6 +197,7 @@ export function initHeroGradient(): void {
     c3: gl.getUniformLocation(prog, "u_c3"),
     bg: gl.getUniformLocation(prog, "u_bg"),
     strength: gl.getUniformLocation(prog, "u_strength"),
+    chaos: gl.getUniformLocation(prog, "u_chaos"),
   };
 
   let palette = readPalette();
@@ -230,14 +243,45 @@ export function initHeroGradient(): void {
   let elapsed = 0;
   let last = performance.now();
   let firstFrame = true;
+  let chaos = 0;
+  let chaosTarget = 0;
+
+  // The "so unnecessary" clause: the Konami code cranks the light into
+  // hue-cycling turbulence. Escape (or re-entering the code) calms it.
+  const KONAMI = [
+    "arrowup", "arrowup", "arrowdown", "arrowdown",
+    "arrowleft", "arrowright", "arrowleft", "arrowright", "b", "a",
+  ];
+  let konamiAt = 0;
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      chaosTarget = 0;
+      return;
+    }
+    const key = e.key.toLowerCase();
+    konamiAt = key === KONAMI[konamiAt] ? konamiAt + 1 : key === KONAMI[0] ? 1 : 0;
+    if (konamiAt === KONAMI.length) {
+      konamiAt = 0;
+      chaosTarget = chaosTarget ? 0 : 1;
+      start();
+    }
+  });
+  console.log(
+    "%c↑ ↑ ↓ ↓ ← → ← → B A%c — there is more light in here. (Esc to calm it back down)",
+    "font-family: monospace; font-weight: bold; color: #e8557f;",
+    "color: inherit;",
+  );
 
   function frame(now: number): void {
     raf = null;
     if (!visible || document.hidden) return;
 
     // Clamp the delta so background tabs / long frames don't jump the field.
-    elapsed += Math.min(now - last, 100) / 1000;
+    const dt = Math.min(now - last, 100) / 1000;
     last = now;
+    chaos += (chaosTarget - chaos) * 0.035;
+    if (chaos < 0.001) chaos = 0;
+    elapsed += dt * (1 + chaos * 3);
 
     curX += (ptrX - curX) * 0.06;
     curY += (ptrY - curY) * 0.06;
@@ -251,6 +295,7 @@ export function initHeroGradient(): void {
     gl!.uniform3fv(u.c3, palette.c3);
     gl!.uniform3fv(u.bg, palette.bg);
     gl!.uniform1f(u.strength, palette.strength);
+    gl!.uniform1f(u.chaos, chaos);
     gl!.drawArrays(gl!.TRIANGLES, 0, 3);
 
     if (firstFrame) {

@@ -1,6 +1,12 @@
 ---
 import { profile } from "../config";
 import Icon from "./Icon.astro";
+
+// Build-time split of the name into per-word / per-char spans for the
+// masked rise reveal. aria-label on the h1 keeps the accessible name
+// intact; the spans are presentation only.
+const nameWords = profile.name.split(" ").map((word) => word.split(""));
+let charIndex = 0;
 ---
 
 <section
@@ -15,7 +21,7 @@ import Icon from "./Icon.astro";
        stays invisible otherwise (see src/scripts/hero-gradient.ts). -->
   <canvas class="hero-canvas" aria-hidden="true"></canvas>
 
-  <div class="mx-auto flex max-w-4xl flex-col items-start gap-5 sm:flex-row sm:items-center sm:gap-8">
+  <div class="hero-content mx-auto flex max-w-4xl flex-col items-start gap-5 sm:flex-row sm:items-center sm:gap-8">
     <img
       src={profile.avatarUrl}
       alt={`${profile.name}`}
@@ -35,9 +41,19 @@ import Icon from "./Icon.astro";
 
       <h1
         id="hero-name"
-        class="mt-2 text-3xl font-semibold sm:text-4xl"
+        aria-label={profile.name}
+        class="hero-name mt-2 font-display font-semibold text-[clamp(2.5rem,6vw,4.25rem)]"
       >
-        {profile.name}
+        {nameWords.map((chars, w) => (
+          <>
+            <span class="word" aria-hidden="true">
+              {chars.map((ch) => (
+                <span class="char" style={`--ci: ${charIndex++}`}>{ch}</span>
+              ))}
+            </span>
+            {w < nameWords.length - 1 && " "}
+          </>
+        ))}
       </h1>
 
       <p class="mt-1.5 text-base font-medium text-accent sm:text-lg">
@@ -113,6 +129,44 @@ import Icon from "./Icon.astro";
 
   .hero-canvas.is-live {
     opacity: 1;
+  }
+
+  /* Display face details: optical sizing at display scale, plus
+   * Fraunces' WONK axis for the editorial personality. */
+  .hero-name {
+    font-optical-sizing: auto;
+    font-variation-settings: "WONK" 1;
+    line-height: 1.05;
+  }
+
+  /* Masked char rise. Words are the overflow-hidden masks (so the name
+   * can wrap on small screens); chars rise inside them with a stagger.
+   * The padding/negative-margin pair keeps descenders (y, g) from being
+   * clipped by the mask while they move. */
+  .word {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: bottom;
+    padding-bottom: 0.14em;
+    margin-bottom: -0.14em;
+  }
+
+  .char {
+    display: inline-block;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :global(.js) .char {
+      transform: translateY(118%);
+      animation: char-rise 640ms var(--ease-tactile) forwards;
+      animation-delay: calc(120ms + var(--ci) * 26ms);
+    }
+
+    @keyframes char-rise {
+      to {
+        transform: none;
+      }
+    }
   }
 </style>
 

@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import frauncesUrl from "../assets/fraunces-latin-var.woff2?url";
 import { profile } from "../config";
 
 interface Props {
@@ -29,6 +30,13 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     <link rel="canonical" href={canonical} />
     <link rel="icon" href={`${base}/favicon.svg`} type="image/svg+xml" />
     <meta name="color-scheme" content="light dark" />
+    <link
+      rel="preload"
+      href={frauncesUrl}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
@@ -58,6 +66,10 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     </script>
   </head>
   <body class="min-h-dvh">
+    <!-- Page progress: scroll-driven, CSS only. display:none unless
+         animation-timeline is supported (see global.css). -->
+    <div class="scroll-progress" aria-hidden="true"></div>
+
     <a
       href="#main"
       class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:border-border focus:bg-surface focus:px-4 focus:py-2 focus:text-fg focus:shadow-md"
@@ -81,6 +93,16 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
           els.forEach(function (el) {
             el.classList.add("is-visible");
           });
+          return;
+        }
+        // Where CSS scroll-driven animations are supported the reveal is
+        // a reversible scrub handled entirely in global.css - skip the
+        // one-shot observer so the two never fight.
+        if (
+          window.CSS &&
+          CSS.supports &&
+          CSS.supports("animation-timeline", "view()")
+        ) {
           return;
         }
         var io = new IntersectionObserver(

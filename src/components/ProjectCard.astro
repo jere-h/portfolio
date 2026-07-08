@@ -57,9 +57,10 @@ const thumb = thumbUrl(project, import.meta.env.BASE_URL);
   <div class="flex flex-1 flex-col p-5 sm:p-6">
     <h3
       class:list={[
-        "font-semibold tracking-[-0.02em]",
-        featured ? "text-xl sm:text-2xl" : "text-lg",
+        "font-display font-semibold tracking-[-0.01em]",
+        featured ? "text-2xl sm:text-3xl" : "text-xl",
       ]}
+      style="font-optical-sizing: auto;"
     >
       {title}
     </h3>
