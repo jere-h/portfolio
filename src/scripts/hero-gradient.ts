@@ -38,6 +38,7 @@ uniform vec3 u_c3;
 uniform vec3 u_bg;
 uniform float u_strength;
 uniform float u_chaos;
+uniform vec3 u_pulse; // xy = uv origin of the last tap, z = remaining energy
 
 vec3 permute(vec3 x) { return mod(((x * 34.0) + 1.0) * x, 289.0); }
 
@@ -107,7 +108,15 @@ void main() {
   float d = distance(vec2(uv.x * aspect, uv.y), focus);
   float mask = 1.0 - smoothstep(0.05, 1.15, d);
   mask += snoise(p * 0.75 - t) * 0.08;
-  mask = clamp(mask + pi * 0.30 + u_chaos * 0.55, 0.0, 1.0);
+
+  // Tap ripple: a ring of light expanding out from the touch point,
+  // fading as its energy decays.
+  vec2 pulseAt = vec2(u_pulse.x * aspect, u_pulse.y);
+  float pulseDist = distance(p, pulseAt);
+  float ringRadius = (1.0 - u_pulse.z) * 1.3;
+  float ring = exp(-pow((pulseDist - ringRadius) * 5.5, 2.0)) * u_pulse.z;
+
+  mask = clamp(mask + pi * 0.30 + ring * 0.85 + u_chaos * 0.55, 0.0, 1.0);
   mask *= smoothstep(0.0, max(0.30 * (1.0 - u_chaos), 0.001), uv.y);
 
   vec3 outc = mix(u_bg, col, mask * mix(u_strength, 0.9, u_chaos));
@@ -198,6 +207,7 @@ export function initHeroGradient(): void {
     bg: gl.getUniformLocation(prog, "u_bg"),
     strength: gl.getUniformLocation(prog, "u_strength"),
     chaos: gl.getUniformLocation(prog, "u_chaos"),
+    pulse: gl.getUniformLocation(prog, "u_pulse"),
   };
 
   let palette = readPalette();
@@ -224,6 +234,65 @@ export function initHeroGradient(): void {
     },
     { passive: true },
   );
+
+  // Tap = a ripple of light from the touch point. Three quick taps on the
+  // light toggle chaos mode - the touch counterpart of the Konami code.
+  let pulseX = 0.5;
+  let pulseY = 0.5;
+  let pulseE = 0;
+  let taps: number[] = [];
+  const heroSection = canvas.parentElement;
+  heroSection?.addEventListener("pointerdown", (e) => {
+    if ((e.target as Element | null)?.closest("a, button")) return;
+    const r = canvas.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return;
+    pulseX = (e.clientX - r.left) / r.width;
+    pulseY = 1 - (e.clientY - r.top) / r.height;
+    pulseE = 1;
+    const now = performance.now();
+    taps = taps.filter((t) => now - t < 650);
+    taps.push(now);
+    if (taps.length >= 3) {
+      taps = [];
+      chaosTarget = chaosTarget ? 0 : 1;
+    }
+    start();
+  });
+
+  // Device tilt steers the light on phones/tablets. Android exposes the
+  // events freely; iOS requires a permission prompt tied to a gesture, so
+  // there we ask once on the first touch of the hero and fall back
+  // silently if declined.
+  function bindOrientation(): void {
+    window.addEventListener(
+      "deviceorientation",
+      (e) => {
+        if (e.gamma == null || e.beta == null) return;
+        // gamma: side tilt [-90..90]; beta: front tilt, ~40deg is a
+        // natural in-hand resting angle.
+        ptrX = 0.5 + (e.gamma / 90) * 1.3;
+        ptrY = 0.5 - ((e.beta - 40) / 90) * 1.3;
+      },
+      { passive: true },
+    );
+  }
+  const DOE = (window as unknown as { DeviceOrientationEvent?: { requestPermission?: () => Promise<string> } })
+    .DeviceOrientationEvent;
+  if (DOE && typeof DOE.requestPermission === "function") {
+    heroSection?.addEventListener(
+      "pointerdown",
+      () => {
+        DOE.requestPermission!()
+          .then((state) => {
+            if (state === "granted") bindOrientation();
+          })
+          .catch(() => {});
+      },
+      { once: true },
+    );
+  } else if (DOE) {
+    bindOrientation();
+  }
 
   function fit(): void {
     const r = canvas.getBoundingClientRect();
@@ -281,6 +350,8 @@ export function initHeroGradient(): void {
     last = now;
     chaos += (chaosTarget - chaos) * 0.035;
     if (chaos < 0.001) chaos = 0;
+    pulseE *= Math.pow(0.04, dt); // ~1.4s ripple decay, frame-rate independent
+    if (pulseE < 0.01) pulseE = 0;
     elapsed += dt * (1 + chaos * 3);
 
     curX += (ptrX - curX) * 0.06;
@@ -296,6 +367,7 @@ export function initHeroGradient(): void {
     gl!.uniform3fv(u.bg, palette.bg);
     gl!.uniform1f(u.strength, palette.strength);
     gl!.uniform1f(u.chaos, chaos);
+    gl!.uniform3f(u.pulse, pulseX, pulseY, pulseE);
     gl!.drawArrays(gl!.TRIANGLES, 0, 3);
 
     if (firstFrame) {

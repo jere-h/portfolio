@@ -128,11 +128,18 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
       reduced-motion visitors never pay for the module.
     -->
     <script>
-      if (
-        window.matchMedia("(pointer: fine)").matches &&
-        window.matchMedia("(prefers-reduced-motion: no-preference)").matches
-      ) {
+      const motionOK = window.matchMedia(
+        "(prefers-reduced-motion: no-preference)",
+      ).matches;
+      if (motionOK && window.matchMedia("(pointer: fine)").matches) {
         import("../scripts/pointer").then((m) => m.initPointer());
+      }
+      // Touch counterpart: scroll position drives the card glow instead
+      // of the cursor.
+      if (motionOK && window.matchMedia("(pointer: coarse)").matches) {
+        import("../scripts/scroll-spotlight").then((m) =>
+          m.initScrollSpotlight(),
+        );
       }
     </script>
   </body>
