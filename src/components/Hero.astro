@@ -70,7 +70,7 @@ let charIndex = 0;
           target="_blank"
           rel="noopener noreferrer"
           data-magnetic
-          class="inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-fg shadow-sm transition-colors duration-200 hover:bg-sand focus-visible:outline-none"
+          class="inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-fg shadow-sm transition-colors duration-200 hover:bg-sand"
         >
           <Icon name="github" size={18} />
           GitHub
@@ -78,7 +78,7 @@ let charIndex = 0;
         <a
           href={`mailto:${profile.email}`}
           data-magnetic
-          class="inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-fg shadow-sm transition-colors duration-200 hover:bg-sand focus-visible:outline-none"
+          class="inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-fg shadow-sm transition-colors duration-200 hover:bg-sand"
         >
           <Icon name="mail" size={18} />
           Email
@@ -111,6 +111,13 @@ let charIndex = 0;
 
   :global(:root.dark) .hero-orb {
     opacity: 0.32;
+  }
+
+  /* Once the canvas is live it fully covers the hero, so stop
+   * compositing the expensive blurred orb underneath it. */
+  .hero-orb:has(+ .hero-canvas.is-live) {
+    opacity: 0;
+    transition: opacity 900ms ease;
   }
 
   .hero-canvas {

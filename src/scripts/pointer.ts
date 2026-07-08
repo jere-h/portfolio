@@ -73,6 +73,16 @@ export function initPointer(): void {
   // Scrolling moves the cards under a stationary cursor; refresh the glow.
   document.addEventListener("scroll", wake, { passive: true, capture: true });
 
+  // Park the pointer far offscreen when it leaves the window so the glow
+  // slides away instead of freezing at the exit point.
+  function park(): void {
+    px = -1e4;
+    py = -1e4;
+    wake();
+  }
+  document.documentElement.addEventListener("mouseleave", park);
+  window.addEventListener("blur", park);
+
   for (const t of tilts) {
     t.el.addEventListener("pointerenter", () => {
       t.hover = true;

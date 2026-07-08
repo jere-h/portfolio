@@ -128,10 +128,11 @@
     height: auto;
   }
 
+  /* The outline follows each element's own border-radius; forcing a
+   * radius here would deform pill/rounded controls when focused. */
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
-    border-radius: 3px;
   }
 
   ::selection {
@@ -270,6 +271,16 @@
   }
 }
 
+/* Touch devices never load the pointer module, so give taps their own
+ * tactile press: a quick squash on every CTA. */
+@media (pointer: coarse) {
+  a[data-magnetic]:active,
+  button[data-magnetic]:active {
+    transform: scale(0.96);
+    transition: transform 100ms var(--ease-tactile);
+  }
+}
+
 /* --------------------------------------------------------------- *
  * Theme switch as a light wipe - View Transitions API.
  * The toggle's inline script drives a clip-path circle on the new
@@ -354,23 +365,26 @@ body::after {
     .js [data-reveal-delay="3"] { animation-range: entry 18% entry 73%; }
 
     /* Hero camera-pull: content sinks and dims as it scrolls away while
-     * the light canvas parallaxes at a slower rate. */
+     * the light canvas parallaxes at a slower rate. scroll(root), not
+     * scroll(): the hero section's overflow-hidden makes it the nearest
+     * scroll container, whose scroll range is zero - the timeline must
+     * bind to the document scroller explicitly. */
     .js .hero-content {
       animation: hero-exit linear both;
-      animation-timeline: scroll();
+      animation-timeline: scroll(root);
       animation-range: 0 70vh;
     }
 
     .js .hero-canvas {
       animation: hero-canvas-drift linear both;
-      animation-timeline: scroll();
+      animation-timeline: scroll(root);
       animation-range: 0 100vh;
     }
 
     .scroll-progress {
       display: block;
       animation: progress-grow linear both;
-      animation-timeline: scroll();
+      animation-timeline: scroll(root);
     }
   }
 }
