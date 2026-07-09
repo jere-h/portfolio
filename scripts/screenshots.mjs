@@ -33,7 +33,13 @@ const REPOS = [
   "skin-concept-arena",
   "travel-encounters-playbook",
   "the-ordeal",
+  "blunt-boot-2026",
 ];
+
+// Pass repo names as CLI args to refresh only those thumbnails, e.g.
+//   node scripts/screenshots.mjs blunt-boot-2026
+const only = process.argv.slice(2);
+const repos = only.length ? only : REPOS;
 
 const CHROME =
   process.env.CHROME_PATH ||
@@ -127,10 +133,33 @@ const PREP = {
   },
 };
 
-const browser = await chromium.launch({ executablePath: CHROME, headless: true });
-for (const repo of REPOS) {
+// Sandboxed environments route outbound HTTPS through a TLS-intercepting
+// proxy that Chromium neither picks up from the environment nor completes a
+// handshake with (the egress gateway resets Chromium's ClientHello). When
+// HTTPS_PROXY is set, launch through the proxy and serve every request via
+// Playwright's Node-side fetch, which tunnels correctly and trusts the proxy
+// CA via NODE_EXTRA_CA_CERTS.
+const proxy = process.env.HTTPS_PROXY
+  ? { server: process.env.HTTPS_PROXY }
+  : undefined;
+
+async function routeViaNodeFetch(ctx) {
+  if (!proxy) return;
+  await ctx.route("**/*", async (route) => {
+    try {
+      const resp = await route.fetch();
+      await route.fulfill({ response: resp });
+    } catch {
+      await route.abort();
+    }
+  });
+}
+
+const browser = await chromium.launch({ executablePath: CHROME, headless: true, proxy });
+for (const repo of repos) {
   const url = `https://${OWNER}.github.io/${repo}/`;
   const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1 });
+  await routeViaNodeFetch(ctx);
   const page = await ctx.newPage();
   try {
     await page.goto(url, { waitUntil: "networkidle", timeout: 30000 });

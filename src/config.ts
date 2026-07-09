@@ -94,6 +94,13 @@ export const projects: ProjectConfig[] = [
       "A short interactive story game that drops early-career data analysts into no-win workplace dilemmas to reveal what they truly value under pressure.",
     featured: false,
   },
+  {
+    repo: "blunt-boot-2026",
+    title: "The Blunt Boot Index",
+    description:
+      "A tongue-in-cheek statistical bulletin ranking the 2026 FIFA World Cup's most goalless shooters by how many shots they fired without ever scoring.",
+    featured: false,
+  },
 ];
 
 /** Live demo URL convention: each repo publishes its own project Pages site. */
