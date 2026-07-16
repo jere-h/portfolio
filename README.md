@@ -27,10 +27,11 @@ components to change what is shown.
 ### Projects
 
 Every project is a card in a single horizontal, swipeable **carousel** - a
-FIFA-style deck where the centered card sits flat and full size while its
-neighbours scale down, dim, and rotate away in 3D. Featured picks lead, then
-the rest, all on one row. Adding a project is now just one more card, not more
-page to scroll.
+trading-card-style deck where the centered card sits flat and full size while
+its neighbours scale down, dim, and rotate away in 3D. Featured picks lead,
+then the rest, all on one row. The deck loops endlessly, so there's always a
+card on either side. Adding a project is now just one more card, not more page
+to scroll.
 
 `projects` is an ordered array. The order in the file **is** the order in the
 deck (featured first, then the rest, each group in array order). Each entry:
@@ -54,10 +55,10 @@ deck (featured first, then the rest, each group in array order). Each entry:
   of the deck and get a "Featured" badge; the rest follow.
 
 The carousel is a native CSS scroll-snap row, so swipe, trackpad, keyboard
-(arrow keys), and the on-screen arrows/dots all navigate it - and it stays
-fully scrollable with JavaScript off. The coverflow rotation and dimming are a
-progressive enhancement (`src/scripts/carousel.ts`) that switches off for
-visitors who prefer reduced motion.
+(arrow keys), and the side arrows/dots all navigate it - and it stays fully
+scrollable with JavaScript off. The endless loop, coverflow rotation, and
+dimming are a progressive enhancement (`src/scripts/carousel.ts`); the
+coverflow motion switches off for visitors who prefer reduced motion.
 
 `title` and `description` in this file always win over whatever GitHub returns.
 The live language dot and "updated N ago" date come from the build-time fetch,

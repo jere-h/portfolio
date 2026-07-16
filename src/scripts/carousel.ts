@@ -1,30 +1,36 @@
 /**
- * FIFA-style coverflow carousel.
+ * Coverflow card carousel - an endless, swipeable deck of project cards,
+ * styled like a pack of collectible trading cards, running the full width
+ * of the page.
  *
- * The horizontal row itself is a native CSS scroll-snap container (see the
- * .fifa-* rules in global.css) - so swipe, trackpad, and keyboard scrolling
- * all work with zero JS, and no-JS visitors still get a scrollable deck.
+ * The row is a native CSS scroll-snap container (see the .deck-* rules in
+ * global.css), so swipe, trackpad, and keyboard scrolling all work with zero
+ * JS, and no-JS visitors still get a scrollable deck.
  *
  * This module layers the "pack" feel on top:
- *   - coverflow transform: the card nearest the centre sits flat and full
- *     size; neighbours scale down, dim, and rotate away in 3D (the "cards
- *     rotate as you swipe" effect), recomputed each frame while scrolling.
- *   - active tracking drives the dot indicators, the prev/next buttons'
- *     disabled state, and per-slide aria-current.
- *   - drag-to-scroll for mouse users (touch already drags natively).
- *   - prev / next buttons, dot buttons, and Arrow/Home/End keys, all of
- *     which snap a chosen card to centre.
+ *   - infinite loop: the real slides are flanked by a full clone of the deck
+ *     on each side, and whenever the scroll settles the position is re-centred
+ *     into the middle band by whole-deck jumps. Because every band is
+ *     identical the jump is invisible - the deck just never runs out, so the
+ *     opening frame is already flanked by cards instead of empty space.
+ *   - coverflow: the card nearest the centre sits flat and full size; its
+ *     neighbours scale down, dim, and rotate away in 3D, recomputed each
+ *     frame while scrolling.
+ *   - a logical `current` index drives the buttons / dots / keyboard so rapid
+ *     input accumulates cleanly instead of fighting the scroll animation.
+ *   - drag-to-scroll for mouse users (touch drags natively).
  *
  * One self-suspending rAF loop, same pattern as pointer.ts: it wakes on
- * scroll / drag / resize and sleeps ~half a second after the deck settles,
- * so an idle page costs nothing.
+ * scroll / drag / resize and sleeps ~half a second after the deck settles.
  *
- * Reduced-motion visitors keep the plain snap deck: no coverflow transform,
- * no smooth scroll - the script guards every motion path.
+ * Reduced-motion visitors keep the plain snap deck: no coverflow transform
+ * and no smooth auto-scroll (the loop still applies, as its jumps are
+ * instant, not animated).
  */
 
 const REDUCE = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const IDLE_FRAMES = 30;
+const SETTLE_FRAMES = 3; // frames of stillness before a loop re-centre jump
 
 export function initCarousel(): void {
   document
@@ -32,18 +38,48 @@ export function initCarousel(): void {
     .forEach((root) => setupCarousel(root));
 }
 
+function cloneForLoop(slide: HTMLElement): HTMLElement {
+  const c = slide.cloneNode(true) as HTMLElement;
+  c.setAttribute("data-clone", "");
+  c.setAttribute("aria-hidden", "true");
+  c.removeAttribute("aria-label");
+  c.removeAttribute("aria-roledescription");
+  // Keep clones out of the tab order (they stay mouse-clickable, with the
+  // same hrefs, so a click on a peeking card still works).
+  c.querySelectorAll<HTMLElement>("a, button, [tabindex]").forEach((el) =>
+    el.setAttribute("tabindex", "-1"),
+  );
+  return c;
+}
+
 function setupCarousel(root: HTMLElement): void {
   const track = root.querySelector<HTMLElement>("[data-carousel-track]");
   if (!track) return;
 
+  const realSlides = Array.from(
+    track.querySelectorAll<HTMLElement>("[data-slide]"),
+  );
+  const n = realSlides.length;
+  if (!n) return;
+
+  const LOOP = n > 1;
+  // Flank the real deck with a full clone on each side: [clones][real][clones].
+  if (LOOP) {
+    const head = document.createDocumentFragment();
+    const tail = document.createDocumentFragment();
+    for (const s of realSlides) head.appendChild(cloneForLoop(s));
+    for (const s of realSlides) tail.appendChild(cloneForLoop(s));
+    track.insertBefore(head, realSlides[0]);
+    track.appendChild(tail);
+  }
+
   const slides = Array.from(
     track.querySelectorAll<HTMLElement>("[data-slide]"),
   );
-  if (!slides.length) return;
-
   const inners = slides.map(
     (s) => s.querySelector<HTMLElement>("[data-slide-inner]") ?? s,
   );
+  const base = LOOP ? n : 0; // index of the first real slide within `slides`
   const prevBtns = Array.from(
     root.querySelectorAll<HTMLButtonElement>("[data-carousel-prev]"),
   );
@@ -57,57 +93,112 @@ function setupCarousel(root: HTMLElement): void {
   let raf: number | null = null;
   let idle = 0;
   let lastLeft = -1;
-  let active = -1;
+  let activeSlide = -1;
+  let current = base; // logical centred slide index (drives navigation)
+  let dragging = false;
 
   function wake(): void {
     idle = 0;
     if (raf === null) raf = requestAnimationFrame(tick);
   }
 
-  // Centre-to-centre distance between neighbouring slides, in px. Read live so
-  // it stays right across responsive width / font changes.
-  function unitPx(): number {
-    return slides.length > 1
-      ? slides[1].offsetLeft - slides[0].offsetLeft
-      : slides[0].offsetWidth || 1;
+  // Scroll offset that centres slide i in the viewport.
+  function centreOffset(i: number): number {
+    const max = track.scrollWidth - track.clientWidth;
+    const left =
+      slides[i].offsetLeft - (track.clientWidth - slides[i].offsetWidth) / 2;
+    return Math.max(0, Math.min(max, left));
   }
 
-  function tick(): void {
+  function nearestIndex(): number {
     const rect = track.getBoundingClientRect();
     const centre = rect.left + rect.width / 2;
-    const unit = unitPx();
-
     let best = 0;
     let bestDist = Infinity;
+    for (let i = 0; i < slides.length; i++) {
+      const r = slides[i].getBoundingClientRect();
+      const dist = Math.abs(r.left + r.width / 2 - centre);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  function realIndexOf(i: number): number {
+    return LOOP ? (((i - base) % n) + n) % n : i;
+  }
+
+  // Jump `current` (and the scroll position) back into the real middle band
+  // by a whole number of decks. Identical content, so it's invisible.
+  function recentre(): void {
+    if (!LOOP) return;
+    const wrapped = base + realIndexOf(current);
+    if (wrapped !== current) {
+      track.scrollLeft += slides[wrapped].offsetLeft - slides[current].offsetLeft;
+      current = wrapped;
+      lastLeft = track.scrollLeft;
+    }
+  }
+
+  function applyCoverflow(): void {
+    if (REDUCE) return;
+    const rect = track.getBoundingClientRect();
+    const centre = rect.left + rect.width / 2;
+    const unit =
+      slides.length > 1
+        ? Math.abs(slides[1].offsetLeft - slides[0].offsetLeft)
+        : slides[0].offsetWidth || 1;
 
     for (let i = 0; i < slides.length; i++) {
       const r = slides[i].getBoundingClientRect();
-      const delta = r.left + r.width / 2 - centre;
-      if (Math.abs(delta) < bestDist) {
-        bestDist = Math.abs(delta);
-        best = i;
-      }
-
-      if (!REDUCE) {
-        // Distance from centre, in card-widths, capped so far cards don't
-        // collapse to nothing.
-        const d = delta / unit;
-        const ad = Math.min(Math.abs(d), 2.4);
-        const scale = 1 - ad * 0.085; // centre 1.0 -> ~0.8 at the far edges
-        const rot = Math.max(-46, Math.min(46, -d * 20)); // rotate toward centre
-        const opacity = Math.max(0.4, 1 - ad * 0.32);
-        const el = inners[i];
-        el.style.transform = `perspective(1400px) rotateY(${rot.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
-        el.style.opacity = opacity.toFixed(3);
-        el.style.zIndex = String(100 - Math.round(ad * 10));
-      }
+      const d = (r.left + r.width / 2 - centre) / unit;
+      const ad = Math.min(Math.abs(d), 2.4);
+      const scale = 1 - ad * 0.085; // centre 1.0 -> ~0.8 at the far edges
+      const rot = Math.max(-46, Math.min(46, -d * 20)); // rotate toward centre
+      const opacity = Math.max(0.4, 1 - ad * 0.32);
+      const el = inners[i];
+      el.style.transform = `perspective(1400px) rotateY(${rot.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
+      el.style.opacity = opacity.toFixed(3);
+      el.style.zIndex = String(100 - Math.round(ad * 10));
     }
+  }
 
-    if (best !== active) setActive(best);
+  function setActive(best: number): void {
+    if (best === activeSlide) return;
+    if (activeSlide >= 0) slides[activeSlide]?.classList.remove("is-active");
+    slides[best].classList.add("is-active");
+    activeSlide = best;
+
+    const real = realIndexOf(best);
+    for (let k = 0; k < dots.length; k++) {
+      dots[k].classList.toggle("is-active", k === real);
+    }
+    for (let k = 0; k < slides.length; k++) {
+      if (slides[k].hasAttribute("data-clone")) continue;
+      if (k === best) slides[k].setAttribute("aria-current", "true");
+      else slides[k].removeAttribute("aria-current");
+    }
+  }
+
+  function tick(): void {
+    const best = nearestIndex();
+    applyCoverflow();
+    setActive(best);
 
     const moved = track.scrollLeft !== lastLeft;
     lastLeft = track.scrollLeft;
     idle = moved ? 0 : idle + 1;
+
+    // Fully settled: adopt whatever a free scroll / drag landed on, then
+    // re-centre into the middle band so the clone buffer is refilled on both
+    // sides for the next fling. Waiting SETTLE_FRAMES keeps this from firing
+    // mid-animation (which would cancel a smooth scroll).
+    if (LOOP && !dragging && idle === SETTLE_FRAMES) {
+      current = best;
+      recentre();
+    }
 
     if (idle < IDLE_FRAMES) {
       raf = requestAnimationFrame(tick);
@@ -116,74 +207,63 @@ function setupCarousel(root: HTMLElement): void {
     }
   }
 
-  function setActive(i: number): void {
-    active = i;
-    for (let k = 0; k < slides.length; k++) {
-      const on = k === i;
-      slides[k].classList.toggle("is-active", on);
-      if (on) slides[k].setAttribute("aria-current", "true");
-      else slides[k].removeAttribute("aria-current");
-    }
-    for (let k = 0; k < dots.length; k++) {
-      dots[k].classList.toggle("is-active", k === i);
-    }
-    const atStart = i <= 0;
-    const atEnd = i >= slides.length - 1;
-    prevBtns.forEach((b) => (b.disabled = atStart));
-    nextBtns.forEach((b) => (b.disabled = atEnd));
-  }
-
-  function goTo(i: number): void {
-    const idx = Math.max(0, Math.min(slides.length - 1, i));
-    slides[idx].scrollIntoView({
+  function scrollToIndex(i: number): void {
+    track.scrollTo({
+      left: centreOffset(i),
       behavior: REDUCE ? "auto" : "smooth",
-      inline: "center",
-      block: "nearest",
     });
     wake();
   }
 
-  // --- navigation controls -------------------------------------------------
-  prevBtns.forEach((b) =>
-    b.addEventListener("click", () => goTo(active - 1)),
-  );
-  nextBtns.forEach((b) =>
-    b.addEventListener("click", () => goTo(active + 1)),
-  );
-  dots.forEach((dot, i) => dot.addEventListener("click", () => goTo(i)));
+  // Step relative to the logical centre. recentre() first so a step never
+  // runs off the clone buffer, then move one card and let the loop settle.
+  function step(dir: number): void {
+    recentre();
+    current += dir;
+    scrollToIndex(current);
+  }
 
-  // Keyboard: the track is focusable, arrows step one card.
+  function goToReal(j: number): void {
+    recentre();
+    current = base + j;
+    scrollToIndex(current);
+  }
+
+  // --- navigation controls -------------------------------------------------
+  prevBtns.forEach((b) => b.addEventListener("click", () => step(-1)));
+  nextBtns.forEach((b) => b.addEventListener("click", () => step(1)));
+  dots.forEach((dot, j) => dot.addEventListener("click", () => goToReal(j)));
+
   track.tabIndex = 0;
   track.addEventListener("keydown", (e) => {
     switch (e.key) {
       case "ArrowLeft":
         e.preventDefault();
-        goTo(active - 1);
+        step(-1);
         break;
       case "ArrowRight":
         e.preventDefault();
-        goTo(active + 1);
+        step(1);
         break;
       case "Home":
         e.preventDefault();
-        goTo(0);
+        goToReal(0);
         break;
       case "End":
         e.preventDefault();
-        goTo(slides.length - 1);
+        goToReal(n - 1);
         break;
     }
   });
 
-  // Tabbing to a link inside an off-centre card pulls that card to centre.
-  slides.forEach((slide, i) => {
+  // Tabbing to a link inside an off-centre (real) card centres that card.
+  realSlides.forEach((slide, i) => {
     slide.addEventListener("focusin", () => {
-      if (i !== active) goTo(i);
+      if (nearestIndex() !== base + i) goToReal(i);
     });
   });
 
   // --- drag-to-scroll (mouse only; touch drags the scroller natively) ------
-  let dragging = false;
   let startX = 0;
   let startLeft = 0;
   let travelled = 0;
@@ -194,8 +274,6 @@ function setupCarousel(root: HTMLElement): void {
     travelled = 0;
     startX = e.clientX;
     startLeft = track.scrollLeft;
-    // Free-drag: turn mandatory snap off so scrollLeft isn't fought, restore
-    // it (and snap to the nearest card) on release.
     track.style.scrollSnapType = "none";
     track.classList.add("is-dragging");
     track.setPointerCapture(e.pointerId);
@@ -219,7 +297,8 @@ function setupCarousel(root: HTMLElement): void {
     } catch {
       /* pointer already released */
     }
-    goTo(active); // settle onto the nearest card
+    current = nearestIndex();
+    scrollToIndex(current); // settle onto the nearest card
   }
 
   track.addEventListener("pointerup", endDrag);
@@ -240,10 +319,15 @@ function setupCarousel(root: HTMLElement): void {
 
   // --- wake sources --------------------------------------------------------
   track.addEventListener("scroll", wake, { passive: true });
-  window.addEventListener("resize", wake, { passive: true });
+  window.addEventListener("resize", () => {
+    // Keep the centred card centred as the layout reflows.
+    track.scrollLeft = centreOffset(current);
+    wake();
+  });
 
-  // First paint, then again after fonts/layout settle so the opening frame
-  // already shows the centre card flat and its neighbours turned away.
+  // Open already flanked by cards: centre the first real slide, no page jump.
+  if (LOOP) track.scrollLeft = centreOffset(base);
+
   wake();
   requestAnimationFrame(() => requestAnimationFrame(wake));
 }

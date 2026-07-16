@@ -404,7 +404,7 @@ body::after {
 }
 
 /* --------------------------------------------------------------- *
- * FIFA-style coverflow carousel - a single swipeable deck of project
+ * Coverflow card carousel - a single swipeable deck of project
  * cards. The row is a native CSS scroll-snap container (works with no
  * JS: touch / trackpad / keyboard all scroll it, and the deck stays
  * fully reachable). src/scripts/carousel.ts layers the "pack" feel on
@@ -412,19 +412,24 @@ body::after {
  * down, dim, and rotate away in 3D. Tokens only - no new palette.
  * --------------------------------------------------------------- */
 @layer components {
-  .fifa-carousel {
+  .deck-carousel {
     position: relative;
-    /* Let the rotated neighbours bleed to the section edges. */
-    margin-inline: calc(-1 * clamp(0px, 2vw, 1.5rem));
+    /* Full-bleed: the deck runs edge to edge so cards flow off both sides
+     * with no hard cut-off. The section is already full page width. */
+    width: 100%;
   }
 
-  .fifa-track {
+  .deck-track {
     --card-w: clamp(268px, 78vw, 320px);
     --card-h: clamp(438px, 62vh, 496px);
+    /* position/z-index contain the slides' coverflow z-index so the arrows
+     * layer above them. */
+    position: relative;
+    z-index: 0;
     display: flex;
     gap: clamp(0.75rem, 3vw, 1.5rem);
     margin: 0;
-    padding-block: 2.5rem;
+    padding-block: 1.75rem;
     /* Side padding lets the first and last card reach the centre. */
     padding-inline: max(1rem, calc(50% - var(--card-w) / 2));
     list-style: none;
@@ -432,25 +437,27 @@ body::after {
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
     scroll-padding-inline: 50%;
-    scroll-behavior: smooth;
+    /* No CSS scroll-behavior: carousel.ts drives smooth (button/dot/key nav)
+     * vs instant (the invisible infinite-loop re-centre, drag, first paint)
+     * per action - a blanket smooth here would animate the loop jump. */
     overscroll-behavior-x: contain;
     cursor: grab;
-    /* Hidden scrollbar - the arrows, dots, and hint carry navigation. */
+    /* Hidden scrollbar - the arrows and dots carry navigation. */
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
 
-  .fifa-track::-webkit-scrollbar {
+  .deck-track::-webkit-scrollbar {
     display: none;
   }
 
-  .fifa-track:focus-visible {
+  .deck-track:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 4px;
     border-radius: var(--radius-md);
   }
 
-  .fifa-track.is-dragging {
+  .deck-track.is-dragging {
     cursor: grabbing;
     scroll-behavior: auto;
     scroll-snap-type: none;
@@ -459,15 +466,15 @@ body::after {
 
   /* No-JS safety net: without the enhancement, show a scrollbar so a
    * mouse can still reach every card. (.js is set before first paint.) */
-  html:not(.js) .fifa-track {
+  html:not(.js) .deck-track {
     scrollbar-width: thin;
   }
-  html:not(.js) .fifa-track::-webkit-scrollbar {
+  html:not(.js) .deck-track::-webkit-scrollbar {
     display: initial;
     height: 8px;
   }
 
-  .fifa-slide {
+  .deck-slide {
     flex: 0 0 var(--card-w);
     width: var(--card-w);
     scroll-snap-align: center;
@@ -475,18 +482,18 @@ body::after {
 
   /* The element the coverflow transform is written to - kept separate
    * from the card's own tilt/glow transforms so the two never fight. */
-  .fifa-slide-inner {
+  .deck-slide-inner {
     height: var(--card-h);
     transform-origin: center center;
     will-change: transform, opacity;
   }
 
-  .fifa-card {
+  .deck-card {
     height: 100%;
   }
 
   /* Uniform card height: clamp the blurb so every card lines up. */
-  .fifa-desc {
+  .deck-desc {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
@@ -494,10 +501,10 @@ body::after {
     overflow: hidden;
   }
 
-  /* Metallic sheen sweep across the card face (FIFA-card cue). Parked
+  /* Metallic sheen sweep across the card face (trading-card cue). Parked
    * off to the left; animated across only when the card is centred and
    * motion is allowed (see below). */
-  .fifa-sheen {
+  .deck-sheen {
     position: absolute;
     inset: 0;
     z-index: 1;
@@ -512,7 +519,7 @@ body::after {
   }
 
   /* Featured pill - the deck's "special card" flag, over the thumbnail. */
-  .fifa-badge {
+  .deck-badge {
     position: absolute;
     top: 0.75rem;
     left: 0.75rem;
@@ -533,43 +540,53 @@ body::after {
   }
 
   /* Controls (arrows + dots) are an enhancement - hidden until JS. */
-  .fifa-controls {
+  .deck-controls {
     display: none;
   }
-  .js .fifa-controls {
+  .js .deck-controls {
     display: flex;
   }
 
-  .fifa-nav-btn {
-    display: inline-flex;
+  /* Arrows overlay the extreme left / right ends of the card area,
+   * vertically centred on the deck. Hidden until JS drives them. */
+  .deck-nav-btn {
+    display: none;
+    position: absolute;
+    top: 50%;
+    z-index: 3;
     align-items: center;
     justify-content: center;
     width: 2.75rem;
     height: 2.75rem;
     border-radius: var(--radius-pill);
     border: 1px solid var(--border);
-    background: var(--surface);
+    background: color-mix(in oklab, var(--surface) 82%, transparent);
     color: var(--fg);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(6px);
+    transform: translateY(-50%);
     transition:
       background-color 200ms var(--ease-tactile),
-      border-color 200ms var(--ease-tactile),
-      opacity 200ms var(--ease-tactile),
-      transform 120ms var(--ease-tactile);
+      border-color 200ms var(--ease-tactile);
   }
-  .fifa-nav-btn:hover:not(:disabled) {
+  .js .deck-nav-btn {
+    display: inline-flex;
+  }
+  .deck-nav-prev {
+    left: clamp(0.25rem, 1.5vw, 1rem);
+  }
+  .deck-nav-next {
+    right: clamp(0.25rem, 1.5vw, 1rem);
+  }
+  .deck-nav-btn:hover {
     background: var(--sand);
-    border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+    border-color: color-mix(in oklab, var(--accent) 45%, var(--border));
   }
-  .fifa-nav-btn:active:not(:disabled) {
-    transform: scale(0.94);
-  }
-  .fifa-nav-btn:disabled {
-    opacity: 0.4;
-    cursor: default;
+  .deck-nav-btn:active {
+    transform: translateY(-50%) scale(0.94);
   }
 
-  .fifa-dot {
+  .deck-dot {
     width: 0.5rem;
     height: 0.5rem;
     padding: 0;
@@ -581,10 +598,10 @@ body::after {
       width 260ms var(--ease-tactile),
       background-color 260ms var(--ease-tactile);
   }
-  .fifa-dot:hover {
+  .deck-dot:hover {
     background: color-mix(in oklab, var(--accent) 55%, transparent);
   }
-  .fifa-dot.is-active {
+  .deck-dot.is-active {
     width: 1.4rem;
     background: var(--accent);
   }
@@ -592,12 +609,12 @@ body::after {
 
 /* Sheen sweep only for the centred card, and only where motion is fine. */
 @media (prefers-reduced-motion: no-preference) {
-  .js .fifa-slide.is-active .fifa-sheen {
-    animation: fifa-sheen 1100ms var(--ease-tactile) both;
+  .js .deck-slide.is-active .deck-sheen {
+    animation: deck-sheen 1100ms var(--ease-tactile) both;
   }
 }
 
-@keyframes fifa-sheen {
+@keyframes deck-sheen {
   from {
     transform: translateX(-130%) skewX(-18deg);
   }
@@ -609,7 +626,7 @@ body::after {
 /* Reduced motion: keep the plain snap deck. No coverflow (the script
  * skips the transforms) and no smooth auto-scroll. */
 @media (prefers-reduced-motion: reduce) {
-  .fifa-track {
+  .deck-track {
     scroll-behavior: auto;
   }
 }
@@ -620,22 +637,9 @@ body::after {
  * IntersectionObserver reveal upgrades to a reversible scrub: cards
  * fade/rise in sync with their own viewport progress, the hero does a
  * gentle camera-pull as you scroll past, and a 2px accent progress
- * bar tracks the page. Browsers without support (and reduced-motion
  * visitors) keep the IO reveal exactly as before - Base.astro skips
  * the observer only when the scrub is active.
  * --------------------------------------------------------------- */
-.scroll-progress {
-  display: none;
-  position: fixed;
-  inset: 0 0 auto 0;
-  height: 2px;
-  z-index: 70;
-  background: var(--accent);
-  transform-origin: 0 50%;
-  transform: scaleX(0);
-  pointer-events: none;
-}
-
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
     .js [data-reveal] {
@@ -667,12 +671,6 @@ body::after {
       animation-timeline: scroll(root);
       animation-range: 0 100vh;
     }
-
-    .scroll-progress {
-      display: block;
-      animation: progress-grow linear both;
-      animation-timeline: scroll(root);
-    }
   }
 }
 
@@ -697,14 +695,5 @@ body::after {
 @keyframes hero-canvas-drift {
   to {
     transform: translateY(16%);
-  }
-}
-
-@keyframes progress-grow {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
   }
 }

@@ -27,59 +27,50 @@ const deck = [...featured, ...rest];
     {
       deck.length > 0 && (
         <section
-          class="mx-auto max-w-6xl px-5 py-12 sm:py-16"
+          class="overflow-x-clip pb-16 pt-4 sm:pb-20 sm:pt-6"
           aria-labelledby="work-heading"
           data-carousel
         >
-          <div
-            class="mb-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 px-1"
+          <h2
+            id="work-heading"
+            class="eyebrow mx-auto max-w-5xl px-5"
             data-reveal
           >
-            <div>
-              <h2 id="work-heading" class="eyebrow">
-                Projects
-              </h2>
-              <p class="mt-2 max-w-md text-[0.95rem] text-muted">
-                A deck of things I've built. Swipe, drag, or use the arrows to
-                flip through - featured picks lead.
-              </p>
-            </div>
+            Projects
+          </h2>
 
-            <div class="fifa-controls flex items-center gap-2">
-              <button
-                type="button"
-                data-carousel-prev
-                class="fifa-nav-btn"
-                aria-label="Previous project"
-              >
-                <Icon name="chevron-left" size={20} />
-              </button>
-              <button
-                type="button"
-                data-carousel-next
-                class="fifa-nav-btn"
-                aria-label="Next project"
-              >
-                <Icon name="chevron-right" size={20} />
-              </button>
-            </div>
-          </div>
+          <div class="deck-carousel" data-reveal data-reveal-delay="1">
+            <button
+              type="button"
+              data-carousel-prev
+              class="deck-nav-btn deck-nav-prev"
+              aria-label="Previous project"
+            >
+              <Icon name="chevron-left" size={20} />
+            </button>
+            <button
+              type="button"
+              data-carousel-next
+              class="deck-nav-btn deck-nav-next"
+              aria-label="Next project"
+            >
+              <Icon name="chevron-right" size={20} />
+            </button>
 
-          <div class="fifa-carousel" data-reveal data-reveal-delay="1">
             <ul
-              class="fifa-track"
+              class="deck-track"
               data-carousel-track
               aria-label="Projects carousel"
               aria-roledescription="carousel"
             >
               {deck.map((project, i) => (
                 <li
-                  class="fifa-slide"
+                  class="deck-slide"
                   data-slide
                   aria-label={`Project ${i + 1} of ${deck.length}: ${project.title}`}
                   aria-roledescription="slide"
                 >
-                  <div class="fifa-slide-inner" data-slide-inner>
+                  <div class="deck-slide-inner" data-slide-inner>
                     <ProjectCard
                       project={project}
                       meta={meta[project.repo]}
@@ -92,13 +83,13 @@ const deck = [...featured, ...rest];
           </div>
 
           <div
-            class="fifa-controls mt-5 flex items-center justify-center gap-2"
+            class="deck-controls mt-5 flex items-center justify-center gap-2"
             aria-hidden="true"
           >
             {deck.map((project, i) => (
               <button
                 type="button"
-                class="fifa-dot"
+                class="deck-dot"
                 data-dot
                 tabindex="-1"
                 aria-label={`Show ${project.title}`}
