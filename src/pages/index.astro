@@ -1,9 +1,8 @@
 ---
 import Base from "../layouts/Base.astro";
-import Header from "../components/Header.astro";
 import Hero from "../components/Hero.astro";
-import Footer from "../components/Footer.astro";
 import ProjectCard from "../components/ProjectCard.astro";
+import ThemeToggle from "../components/ThemeToggle.astro";
 import Icon from "../components/Icon.astro";
 import { projects } from "../config";
 import { getRepoMeta } from "../lib/github";
@@ -19,7 +18,11 @@ const deck = [...featured, ...rest];
 ---
 
 <Base>
-  <Header />
+  <!-- Floating theme toggle: keeps light/dark switching after the persistent
+       header was removed, without repeating the name in a top bar. -->
+  <div class="fixed right-4 top-4 z-[90]">
+    <ThemeToggle />
+  </div>
 
   <main id="main">
     <Hero />
@@ -100,8 +103,6 @@ const deck = [...featured, ...rest];
       )
     }
   </main>
-
-  <Footer />
 </Base>
 
 <script>

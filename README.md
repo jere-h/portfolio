@@ -83,7 +83,7 @@ never breaks.
 ### Personal info
 
 `profile` in the same file holds name, tagline, bio, location, avatar URL,
-email, and the footer/hero social links (GitHub + email).
+email, and the hero social links (GitHub + email).
 
 ## Build-time GitHub fetch and the cache
 
@@ -164,7 +164,7 @@ src/
     github.ts          # build-time fetch + cache fallback
     format.ts          # language colors, relative dates, count formatting
   styles/global.css    # design tokens + base styles
-  components/           # Hero, ProjectCard, Header, Footer, ThemeToggle, ...
+  components/           # Hero, ProjectCard, ThemeToggle, Icon, ...
   scripts/
     carousel.ts         # coverflow deck: drag, snap, dots, arrows, keys
     pointer.ts          # fine-pointer glow / tilt / magnetic buttons
