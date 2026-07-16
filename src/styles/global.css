@@ -631,6 +631,20 @@ body::after {
   }
 }
 
+/* Phones: the card is only ~78vw wide, so the blurb wraps to more lines -
+ * give it a taller card and a looser clamp so descriptions read in full
+ * instead of getting cut off. */
+@media (max-width: 640px) {
+  .deck-track {
+    --card-h: clamp(508px, 78vh, 588px);
+  }
+
+  .deck-desc {
+    -webkit-line-clamp: 6;
+    line-clamp: 6;
+  }
+}
+
 /* --------------------------------------------------------------- *
  * Scroll-driven animation layer - native CSS, zero JS, runs off the
  * main thread. Where animation-timeline is supported the one-shot
