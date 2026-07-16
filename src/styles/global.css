@@ -404,6 +404,217 @@ body::after {
 }
 
 /* --------------------------------------------------------------- *
+ * FIFA-style coverflow carousel - a single swipeable deck of project
+ * cards. The row is a native CSS scroll-snap container (works with no
+ * JS: touch / trackpad / keyboard all scroll it, and the deck stays
+ * fully reachable). src/scripts/carousel.ts layers the "pack" feel on
+ * top: the centred card sits flat and full size while neighbours scale
+ * down, dim, and rotate away in 3D. Tokens only - no new palette.
+ * --------------------------------------------------------------- */
+@layer components {
+  .fifa-carousel {
+    position: relative;
+    /* Let the rotated neighbours bleed to the section edges. */
+    margin-inline: calc(-1 * clamp(0px, 2vw, 1.5rem));
+  }
+
+  .fifa-track {
+    --card-w: clamp(268px, 78vw, 320px);
+    --card-h: clamp(438px, 62vh, 496px);
+    display: flex;
+    gap: clamp(0.75rem, 3vw, 1.5rem);
+    margin: 0;
+    padding-block: 2.5rem;
+    /* Side padding lets the first and last card reach the centre. */
+    padding-inline: max(1rem, calc(50% - var(--card-w) / 2));
+    list-style: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 50%;
+    scroll-behavior: smooth;
+    overscroll-behavior-x: contain;
+    cursor: grab;
+    /* Hidden scrollbar - the arrows, dots, and hint carry navigation. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .fifa-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .fifa-track:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: var(--radius-md);
+  }
+
+  .fifa-track.is-dragging {
+    cursor: grabbing;
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+    user-select: none;
+  }
+
+  /* No-JS safety net: without the enhancement, show a scrollbar so a
+   * mouse can still reach every card. (.js is set before first paint.) */
+  html:not(.js) .fifa-track {
+    scrollbar-width: thin;
+  }
+  html:not(.js) .fifa-track::-webkit-scrollbar {
+    display: initial;
+    height: 8px;
+  }
+
+  .fifa-slide {
+    flex: 0 0 var(--card-w);
+    width: var(--card-w);
+    scroll-snap-align: center;
+  }
+
+  /* The element the coverflow transform is written to - kept separate
+   * from the card's own tilt/glow transforms so the two never fight. */
+  .fifa-slide-inner {
+    height: var(--card-h);
+    transform-origin: center center;
+    will-change: transform, opacity;
+  }
+
+  .fifa-card {
+    height: 100%;
+  }
+
+  /* Uniform card height: clamp the blurb so every card lines up. */
+  .fifa-desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+  }
+
+  /* Metallic sheen sweep across the card face (FIFA-card cue). Parked
+   * off to the left; animated across only when the card is centred and
+   * motion is allowed (see below). */
+  .fifa-sheen {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    transform: translateX(-130%) skewX(-18deg);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.22) 50%,
+      transparent
+    );
+  }
+
+  /* Featured pill - the deck's "special card" flag, over the thumbnail. */
+  .fifa-badge {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.28rem 0.6rem;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--on-accent);
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Controls (arrows + dots) are an enhancement - hidden until JS. */
+  .fifa-controls {
+    display: none;
+  }
+  .js .fifa-controls {
+    display: flex;
+  }
+
+  .fifa-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--fg);
+    box-shadow: var(--shadow-sm);
+    transition:
+      background-color 200ms var(--ease-tactile),
+      border-color 200ms var(--ease-tactile),
+      opacity 200ms var(--ease-tactile),
+      transform 120ms var(--ease-tactile);
+  }
+  .fifa-nav-btn:hover:not(:disabled) {
+    background: var(--sand);
+    border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+  }
+  .fifa-nav-btn:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+  .fifa-nav-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .fifa-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: color-mix(in oklab, var(--muted) 45%, transparent);
+    cursor: pointer;
+    transition:
+      width 260ms var(--ease-tactile),
+      background-color 260ms var(--ease-tactile);
+  }
+  .fifa-dot:hover {
+    background: color-mix(in oklab, var(--accent) 55%, transparent);
+  }
+  .fifa-dot.is-active {
+    width: 1.4rem;
+    background: var(--accent);
+  }
+}
+
+/* Sheen sweep only for the centred card, and only where motion is fine. */
+@media (prefers-reduced-motion: no-preference) {
+  .js .fifa-slide.is-active .fifa-sheen {
+    animation: fifa-sheen 1100ms var(--ease-tactile) both;
+  }
+}
+
+@keyframes fifa-sheen {
+  from {
+    transform: translateX(-130%) skewX(-18deg);
+  }
+  to {
+    transform: translateX(130%) skewX(-18deg);
+  }
+}
+
+/* Reduced motion: keep the plain snap deck. No coverflow (the script
+ * skips the transforms) and no smooth auto-scroll. */
+@media (prefers-reduced-motion: reduce) {
+  .fifa-track {
+    scroll-behavior: auto;
+  }
+}
+
+/* --------------------------------------------------------------- *
  * Scroll-driven animation layer - native CSS, zero JS, runs off the
  * main thread. Where animation-timeline is supported the one-shot
  * IntersectionObserver reveal upgrades to a reversible scrub: cards

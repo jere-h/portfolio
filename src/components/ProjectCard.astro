@@ -10,38 +10,37 @@ interface Props {
   project: ProjectConfig;
   meta: RepoMeta | undefined;
   featured?: boolean;
-  delay?: 0 | 1 | 2 | 3;
 }
 
-const { project, meta, featured = false, delay = 0 } = Astro.props;
+const { project, meta, featured = false } = Astro.props;
 const { title, description, repo } = project;
 
 const language = meta?.language ?? null;
-const topics = meta?.topics ?? [];
 const updated = relativeDate(meta?.updatedAt ?? null);
-const hasMeta = Boolean(language) || Boolean(updated) || topics.length > 0;
+const hasMeta = Boolean(language) || Boolean(updated);
 
 const live = demoUrl(repo);
 const source = repoUrl(repo);
 const thumb = thumbUrl(project, import.meta.env.BASE_URL);
 ---
 
-<!-- Reveal lives on the wrapper so the entrance transform never fights the
-     pointer module's tilt transform on the card itself. -->
-<div data-reveal data-reveal-delay={delay || undefined} class="h-full">
+<!-- One project as a portrait "trading card". The carousel (see the .fifa-*
+     styles in global.css) drives the coverflow transform on the wrapping
+     slide; this article keeps the pointer-physics tilt + glow hooks. -->
 <article
   data-tilt
   data-glow
   class:list={[
-    "group relative flex h-full flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-sm",
+    "fifa-card group relative flex h-full flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-sm",
     "transition duration-300 ease-[cubic-bezier(.32,.72,0,1)]",
-    "hover:shadow-md hover:border-accent/40",
+    "hover:shadow-lg hover:border-accent/40",
   ]}
 >
-  <!-- Live app screenshot. Warm gradient sits behind as a graceful fallback. -->
+  <!-- Live app screenshot. Warm gradient sits behind as a graceful fallback,
+       with a diagonal sheen sweeping the face when the card is centered. -->
   <div
-    class="relative aspect-[3/2] overflow-hidden border-b border-border"
-    style="background: linear-gradient(135deg, #ffd9a8, #f7849b 45%, #a93a8f);"
+    class="relative aspect-[3/2] shrink-0 overflow-hidden border-b border-border"
+    style="background: linear-gradient(135deg, var(--glow-0), var(--glow-1) 45%, var(--glow-3));"
   >
     <img
       src={thumb}
@@ -50,43 +49,35 @@ const thumb = thumbUrl(project, import.meta.env.BASE_URL);
       height="800"
       loading="lazy"
       decoding="async"
-      class="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-500 ease-[cubic-bezier(.32,.72,0,1)] group-hover:scale-[1.03]"
+      class="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-500 ease-[cubic-bezier(.32,.72,0,1)] group-hover:scale-[1.04]"
     />
+
+    <span class="fifa-sheen" aria-hidden="true"></span>
+
+    {
+      featured && (
+        <span class="fifa-badge">
+          <Icon name="star" size={11} />
+          Featured
+        </span>
+      )
+    }
   </div>
 
-  <div class="flex flex-1 flex-col p-5 sm:p-6">
+  <div class="flex flex-1 flex-col p-5">
     <h3
-      class:list={[
-        "font-display font-semibold tracking-[-0.01em]",
-        featured ? "text-2xl sm:text-3xl" : "text-xl",
-      ]}
+      class="font-display text-xl font-semibold tracking-[-0.01em]"
       style="font-optical-sizing: auto;"
     >
       {title}
     </h3>
 
-    <p
-      class:list={[
-        "mt-2 text-muted",
-        featured ? "text-base" : "text-[0.95rem]",
-      ]}
-    >
-      {description}
-    </p>
+    <p class="fifa-desc mt-2 text-[0.95rem] text-muted">{description}</p>
 
     {
       hasMeta && (
         <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
           <LanguageDot language={language} />
-          {topics.length > 0 && (
-            <ul class="flex flex-wrap gap-2" aria-label="Topics">
-              {topics.slice(0, 4).map((t) => (
-                <li class="rounded-pill border border-border bg-sand px-2.5 py-0.5 font-mono text-xs text-muted">
-                  {t}
-                </li>
-              ))}
-            </ul>
-          )}
           {updated && (
             <span class="tabular ml-auto text-xs text-muted">{updated}</span>
           )}
@@ -94,7 +85,7 @@ const thumb = thumbUrl(project, import.meta.env.BASE_URL);
       )
     }
 
-    <div class="mt-auto flex flex-wrap gap-3 pt-6">
+    <div class="mt-auto flex flex-wrap gap-3 pt-5">
       <a
         href={live}
         target="_blank"
@@ -121,4 +112,3 @@ const thumb = thumbUrl(project, import.meta.env.BASE_URL);
     </div>
   </div>
 </article>
-</div>

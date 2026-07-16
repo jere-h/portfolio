@@ -26,26 +26,38 @@ components to change what is shown.
 
 ### Projects
 
-`projects` is an ordered array. The order in the file **is** the order on the
-page. Each entry:
+Every project is a card in a single horizontal, swipeable **carousel** - a
+FIFA-style deck where the centered card sits flat and full size while its
+neighbours scale down, dim, and rotate away in 3D. Featured picks lead, then
+the rest, all on one row. Adding a project is now just one more card, not more
+page to scroll.
+
+`projects` is an ordered array. The order in the file **is** the order in the
+deck (featured first, then the rest, each group in array order). Each entry:
 
 ```ts
 {
   repo: "undergrad-paths-map",   // GitHub repo name under github.com/jere-h/
   title: "Open Doors",            // display title (overrides the GitHub name)
   description: "An interactive map that ...", // overrides the GitHub description
-  featured: true,                 // true = large card in the "Featured" row
+  featured: true,                 // true = leads the deck, with a "Featured" badge
 }
 ```
 
-- **Add a project:** append (or insert) an object to `projects`. Its live-demo
-  button points at `https://jere-h.github.io/<repo>/` automatically, and its
-  Code button at `https://github.com/jere-h/<repo>`.
+- **Add a project:** append (or insert) an object to `projects`. It becomes a
+  new card in the deck. Its live-demo button points at
+  `https://jere-h.github.io/<repo>/` automatically, and its Code button at
+  `https://github.com/jere-h/<repo>`.
 - **Remove a project:** delete its object.
-- **Reorder:** move objects up or down. Featured cards render in their array
-  order, then the non-featured grid in its array order.
-- **Feature / unfeature:** flip `featured`. Featured projects render as the
-  larger cards up top; the rest fill the responsive grid below.
+- **Reorder:** move objects up or down within their group (featured / not).
+- **Feature / unfeature:** flip `featured`. Featured projects sort to the front
+  of the deck and get a "Featured" badge; the rest follow.
+
+The carousel is a native CSS scroll-snap row, so swipe, trackpad, keyboard
+(arrow keys), and the on-screen arrows/dots all navigate it - and it stays
+fully scrollable with JavaScript off. The coverflow rotation and dimming are a
+progressive enhancement (`src/scripts/carousel.ts`) that switches off for
+visitors who prefer reduced motion.
 
 `title` and `description` in this file always win over whatever GitHub returns.
 The live language dot and "updated N ago" date come from the build-time fetch,
@@ -152,8 +164,12 @@ src/
     format.ts          # language colors, relative dates, count formatting
   styles/global.css    # design tokens + base styles
   components/           # Hero, ProjectCard, Header, Footer, ThemeToggle, ...
+  scripts/
+    carousel.ts         # coverflow deck: drag, snap, dots, arrows, keys
+    pointer.ts          # fine-pointer glow / tilt / magnetic buttons
+    ...
   layouts/Base.astro    # <head>, theme init, reveal script, skip link
-  pages/index.astro     # the single page
+  pages/index.astro     # the single page (hero + project carousel)
 scripts/sync-root.mjs  # copies dist/ to repo root for the Pages deploy
 ```
 
