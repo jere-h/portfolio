@@ -74,6 +74,13 @@ export const projects: ProjectConfig[] = [
     featured: true,
   },
   {
+    repo: "fifteen-percent",
+    title: "Fifteen Percent",
+    description:
+      "A private, on-device tool that walks you through preparing a tax-evasion tip-off to Singapore's IRAS, which can pay a discretionary 15% of the tax it recovers.",
+    featured: true,
+  },
+  {
     repo: "skin-concept-arena",
     title: "Skin Concept Arena",
     description:

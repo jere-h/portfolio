@@ -30,6 +30,7 @@ const OWNER = "jere-h";
 const REPOS = [
   "undergrad-paths-map",
   "idea-collider",
+  "fifteen-percent",
   "skin-concept-arena",
   "travel-encounters-playbook",
   "the-ordeal",
