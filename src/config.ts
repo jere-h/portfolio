@@ -45,9 +45,9 @@ export interface ProfileConfig {
 export const owner = "jere-h";
 
 export const profile: ProfileConfig = {
-  name: "Jeremy Huang",
+  name: "Jeremy H.",
   tagline: "Product & Analytics",
-  bio: "Product and analytics builder based in Singapore. I ship small, sharp web apps that turn fuzzy ideas into things you can actually click.",
+  bio: "I ship small ideas while hoping for a big one.",
   location: "Singapore",
   avatarUrl: "https://github.com/jere-h.png",
   email: "jeremyhyf@gmail.com",
