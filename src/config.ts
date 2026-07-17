@@ -47,7 +47,7 @@ export const owner = "jere-h";
 export const profile: ProfileConfig = {
   name: "Jeremy H.",
   tagline: "Product & Analytics",
-  bio: "I ship small ideas while hoping to chance on a big one.",
+  bio: "I ship small ideas while hoping for a big one.",
   location: "Singapore",
   avatarUrl: "https://github.com/jere-h.png",
   email: "jeremyhyf@gmail.com",
