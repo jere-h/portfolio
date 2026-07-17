@@ -13,7 +13,7 @@ let charIndex = 0;
      content centered so the living light is the first impression. On
      larger screens it stays the compact editorial band. -->
 <section
-  class="relative isolate flex min-h-[40svh] flex-col justify-center overflow-hidden px-5 py-8 sm:min-h-0 sm:justify-start sm:pt-10 sm:pb-8"
+  class="relative isolate flex min-h-[28svh] flex-col justify-center overflow-hidden px-5 py-6 sm:min-h-0 sm:justify-start sm:pt-8 sm:pb-6"
   aria-labelledby="hero-name"
 >
   <!-- warm orb: permanent no-JS / reduced-motion / no-WebGL fallback -->
@@ -66,27 +66,6 @@ let charIndex = 0;
       <p class="mt-3 max-w-xl text-[0.95rem] leading-relaxed text-muted sm:text-base">
         {profile.bio}
       </p>
-
-      <div class="mt-5 flex flex-wrap gap-3">
-        <a
-          href={profile.socials.github}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-magnetic
-          class="inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-fg shadow-sm transition-colors duration-200 hover:bg-sand"
-        >
-          <Icon name="github" size={18} />
-          GitHub
-        </a>
-        <a
-          href={`mailto:${profile.email}`}
-          data-magnetic
-          class="inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-fg shadow-sm transition-colors duration-200 hover:bg-sand"
-        >
-          <Icon name="mail" size={18} />
-          Email
-        </a>
-      </div>
     </div>
   </div>
 </section>

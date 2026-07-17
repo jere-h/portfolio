@@ -270,8 +270,14 @@ function setupCarousel(root: HTMLElement): void {
 
   track.addEventListener("pointerdown", (e) => {
     if (e.pointerType !== "mouse") return;
-    dragging = true;
+    // Reset per gesture so a stale value from a previous drag can never
+    // suppress a later click.
     travelled = 0;
+    // Never hijack a press that lands on an interactive control - links and
+    // buttons must stay clickable. Capturing the pointer here would otherwise
+    // redirect the follow-up click away from the anchor.
+    if ((e.target as HTMLElement).closest("a, button")) return;
+    dragging = true;
     startX = e.clientX;
     startLeft = track.scrollLeft;
     track.style.scrollSnapType = "none";
