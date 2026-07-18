@@ -81,6 +81,13 @@ export const projects: ProjectConfig[] = [
     featured: true,
   },
   {
+    repo: "smarty-challenge",
+    title: "Smarty Challenge",
+    description:
+      "A timed mobile quiz app for math problems and riddles, playable solo or pass-the-phone with friends on identical question sets.",
+    featured: false,
+  },
+  {
     repo: "skin-concept-arena",
     title: "Skin Concept Arena",
     description:
