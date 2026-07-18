@@ -115,6 +115,13 @@ export const projects: ProjectConfig[] = [
       "A tongue-in-cheek statistical bulletin ranking the 2026 FIFA World Cup's most goalless shooters by how many shots they fired without ever scoring.",
     featured: false,
   },
+  {
+    repo: "shape-by-shape",
+    title: "Shape by Shape",
+    description:
+      "A pass-and-play drawing game that guides players to build a picture one easy shape at a time, then reveals everyone's take on the same prompt side by side.",
+    featured: false,
+  },
 ];
 
 /** Live demo URL convention: each repo publishes its own project Pages site. */

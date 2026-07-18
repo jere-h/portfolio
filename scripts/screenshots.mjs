@@ -36,6 +36,7 @@ const REPOS = [
   "travel-encounters-playbook",
   "the-ordeal",
   "blunt-boot-2026",
+  "shape-by-shape",
 ];
 
 // Pass repo names as CLI args to refresh only those thumbnails, e.g.
