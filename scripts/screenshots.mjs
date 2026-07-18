@@ -31,6 +31,7 @@ const REPOS = [
   "undergrad-paths-map",
   "idea-collider",
   "fifteen-percent",
+  "smarty-challenge",
   "skin-concept-arena",
   "travel-encounters-playbook",
   "the-ordeal",
