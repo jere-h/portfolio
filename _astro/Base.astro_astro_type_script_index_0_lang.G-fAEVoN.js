@@ -1,0 +1,1 @@
+import{_ as i}from"./preload-helper.1VAPCBNF.js";const t=window.matchMedia("(prefers-reduced-motion: no-preference)").matches;t&&window.matchMedia("(pointer: fine)").matches&&i(()=>import("./pointer.BiZvtcme.js"),[]).then(e=>e.initPointer());t&&window.matchMedia("(pointer: coarse)").matches&&i(()=>import("./scroll-spotlight.C7vY_Lnb.js"),[]).then(e=>e.initScrollSpotlight());

@@ -711,3 +711,141 @@ body::after {
     transform: translateY(16%);
   }
 }
+
+/* --------------------------------------------------------------- *
+ * Turbo-scroll easter egg (carousel.ts + explode.ts). "Redline" is
+ * the warning rattle while the wheel is pinned at max speed; the
+ * boom-* pieces are the explosion flash, debris, and aftershake. The scripts gate all of it behind JS + motion-OK,
+ * so no reduced-motion rules are needed here. Tokens only - the
+ * debris reuses the hero glow ramp. Kept unlayered (like the scrub
+ * layer above) so these override the [data-reveal] animations.
+ * --------------------------------------------------------------- */
+[data-carousel].is-redline .deck-carousel {
+  animation: deck-redline 90ms linear infinite;
+}
+
+.boom-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 998;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.boom-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 45%,
+    #fff 0%,
+    var(--glow-0) 22%,
+    var(--glow-2) 46%,
+    transparent 72%
+  );
+  animation: boom-flash 700ms ease-out both;
+}
+
+/* Debris: each bit gets a random direction (--bx/--by), delay (--bd)
+ * and size (--bs) inline from explode.ts. */
+.boom-bit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 2px;
+  background: var(--glow-2);
+  animation: boom-bit 1s cubic-bezier(0.2, 0.6, 0.4, 1) var(--bd, 0ms) both;
+}
+.boom-bit:nth-child(3n) {
+  background: var(--glow-0);
+  border-radius: var(--radius-pill);
+}
+.boom-bit:nth-child(3n + 1) {
+  background: var(--glow-3);
+}
+
+/* Blast shake: main only - the overlay and note are fixed children of
+ * body, and a transform there would re-anchor them to the document. */
+body.boom-shake main {
+  animation: boom-shake 620ms linear both;
+}
+
+/* Page scroll stays locked while pieces are mid-air, since the flung
+ * transforms would otherwise stretch the scrollable area. */
+.is-exploded,
+.is-exploded body {
+  overflow: hidden;
+}
+
+/* The scroll-scrub / reveal animations write transform + opacity on
+ * [data-reveal] elements, and running animations beat inline styles -
+ * they would pin the hero image and heading in place mid-explosion.
+ * Parked while exploded; settled elements sit at the same values the
+ * animation fill was holding, so nothing visibly jumps. */
+.is-exploded [data-reveal] {
+  animation: none !important;
+}
+
+@keyframes deck-redline {
+  0% {
+    transform: translate(1.5px, -1px) rotate(0.12deg);
+  }
+  25% {
+    transform: translate(-1.5px, 1px) rotate(-0.12deg);
+  }
+  50% {
+    transform: translate(1px, 1.5px) rotate(0.1deg);
+  }
+  75% {
+    transform: translate(-1px, -1.5px) rotate(-0.1deg);
+  }
+  100% {
+    transform: translate(1.5px, -1px) rotate(0.12deg);
+  }
+}
+
+@keyframes boom-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes boom-bit {
+  from {
+    transform: translate(-50%, -50%) scale(var(--bs, 1));
+    opacity: 1;
+  }
+  to {
+    transform: translate(calc(-50% + var(--bx, 0px)), calc(-50% + var(--by, 0px)))
+      rotate(540deg) scale(0.2);
+    opacity: 0;
+  }
+}
+
+@keyframes boom-shake {
+  10% {
+    transform: translate(-16px, 9px) rotate(-0.7deg);
+  }
+  25% {
+    transform: translate(14px, -7px) rotate(0.6deg);
+  }
+  40% {
+    transform: translate(-10px, 6px) rotate(-0.4deg);
+  }
+  55% {
+    transform: translate(8px, -4px) rotate(0.3deg);
+  }
+  70% {
+    transform: translate(-5px, 3px) rotate(-0.2deg);
+  }
+  85% {
+    transform: translate(3px, -2px) rotate(0.1deg);
+  }
+  100% {
+    transform: none;
+  }
+}
