@@ -19,6 +19,9 @@
  *   - a logical `current` index drives the buttons / dots / keyboard so rapid
  *     input accumulates cleanly instead of fighting the scroll animation.
  *   - drag-to-scroll for mouse users (touch drags natively).
+ *   - turbo wheel: a desktop scroll wheel drives the deck sideways, ramping
+ *     faster the longer it spins - hold max speed for three seconds and the
+ *     site explodes (the easter egg lives in explode.ts).
  *
  * One self-suspending rAF loop, same pattern as pointer.ts: it wakes on
  * scroll / drag / resize and sleeps ~half a second after the deck settles.
@@ -309,6 +312,110 @@ function setupCarousel(root: HTMLElement): void {
 
   track.addEventListener("pointerup", endDrag);
   track.addEventListener("pointercancel", endDrag);
+
+  // --- turbo wheel (desktop) + easter egg ----------------------------------
+  // A wheel over the deck scrolls the cards sideways, and keeping the wheel
+  // spinning ramps the speed higher and higher. Pin it at the ceiling for
+  // three full seconds and the site explodes (see explode.ts). Pausing for a
+  // beat drops the ramp back to 1x, so casual scrolling stays calm.
+  //
+  // Skipped under reduced motion (the deck keeps native scrolling) and for
+  // single-card decks (nothing to race through).
+  const TURBO_MAX = 9; // top speed multiplier
+  // A pause longer than this resets the ramp. Generous on purpose: spinning
+  // a physical wheel hard means flick - regrip - flick, with 200-500ms
+  // between flicks, and those must all read as one sustained gesture.
+  const TURBO_GAP_MS = 600;
+  const TURBO_SETTLE_MS = 450; // wheel quiet this long -> snap to a card
+  const TURBO_HOLD_MS = 3000; // time pinned at max before the site gives up
+  if (!REDUCE && LOOP) {
+    let boost = 1;
+    let lastWheel = 0;
+    let maxSince = 0; // timestamp the ramp first hit TURBO_MAX (0 = not at max)
+    let settleTimer = 0;
+    let exploding = false;
+
+    // Width of one full deck of cards - the invisible-jump unit.
+    const band = () => slides[base + n].offsetLeft - slides[base].offsetLeft;
+
+    // Wheel gone quiet: re-enable snap and settle onto the nearest card,
+    // same as the end of a drag. Deliberately does NOT reset the ramp -
+    // whether the pause was long enough to lose the boost is judged by the
+    // gap check on the next wheel event, so one threshold owns that call.
+    const settleWheel = () => {
+      root.classList.remove("is-redline");
+      track.style.scrollSnapType = "";
+      current = nearestIndex();
+      scrollToIndex(current);
+    };
+
+    track.addEventListener(
+      "wheel",
+      (e) => {
+        if (exploding || dragging) return;
+        const raw =
+          Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+        if (!raw) return;
+        e.preventDefault();
+        // Normalise line/page deltas (Firefox) to pixels.
+        const px =
+          e.deltaMode === 1
+            ? raw * 16
+            : e.deltaMode === 2
+              ? raw * track.clientWidth
+              : raw;
+
+        const now = performance.now();
+        if (now - lastWheel > TURBO_GAP_MS) {
+          boost = 1;
+          maxSince = 0;
+        } else {
+          boost = Math.min(TURBO_MAX, boost * 1.07 + 0.12);
+        }
+        lastWheel = now;
+
+        // Direct scrollLeft writes fight mandatory snap - disable it for the
+        // gesture, exactly like drag does, and restore it on settle.
+        track.style.scrollSnapType = "none";
+        const w = band();
+        // Cap a single event at one full deck so the motion stays readable.
+        track.scrollLeft += Math.max(-w, Math.min(w, px * boost));
+
+        // Turbo can cross a whole clone band between settles, so wrap back
+        // into the middle band mid-flight - identical content on both sides
+        // makes the jump invisible, and the deck never hits its ends.
+        const home = centreOffset(base);
+        while (track.scrollLeft > home + w / 2) track.scrollLeft -= w;
+        while (track.scrollLeft < home - w / 2) track.scrollLeft += w;
+
+        if (boost >= TURBO_MAX) {
+          if (!maxSince) maxSince = now;
+          root.classList.add("is-redline");
+          if (now - maxSince >= TURBO_HOLD_MS) {
+            exploding = true;
+            clearTimeout(settleTimer);
+            root.classList.remove("is-redline");
+            track.style.scrollSnapType = "";
+            boost = 1;
+            maxSince = 0;
+            import("./explode").then((m) =>
+              m.explodeSite(() => {
+                exploding = false;
+              }),
+            );
+          }
+        } else {
+          maxSince = 0;
+          root.classList.remove("is-redline");
+        }
+
+        clearTimeout(settleTimer);
+        settleTimer = window.setTimeout(settleWheel, TURBO_SETTLE_MS);
+        wake();
+      },
+      { passive: false },
+    );
+  }
 
   // Suppress the click that ends a real drag so a drag never fires a link.
   track.addEventListener(
