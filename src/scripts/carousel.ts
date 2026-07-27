@@ -41,6 +41,10 @@ const TURBO_MAX = 9; // top ramp multiplier
 // a physical wheel hard means flick - regrip - flick, with 200-500ms
 // between flicks, and those must all read as one sustained gesture.
 const TURBO_GAP_MS = 600;
+// Sustained wheeling for this long before the ramp engages. Below it the
+// deck scrolls at a plain 1x with zero speed styling - casual scrolling must
+// feel like ordinary scrolling, not the start of an animation.
+const TURBO_RAMP_DELAY_MS = 1000;
 const TURBO_SETTLE_MS = 450; // wheel quiet this long -> snap to a card
 const TURBO_HOLD_MS = 3000; // time pinned at max before the site gives up
 const TURBO_GAIN = 0.35; // wheel px -> velocity bump
@@ -196,11 +200,19 @@ function setupCarousel(root: HTMLElement): void {
     // and the cards stretch and shear along the direction of travel - the
     // classic motion-streak cue. This is what makes "too fast" *look* too
     // fast, and it costs nothing: the same transform string was being
-    // written every frame anyway.
-    const speed = Math.min(1, Math.abs(turboVel) / TURBO_VEL_MAX);
+    // written every frame anyway. Zero below the 1x cruising cap, so plain
+    // pre-ramp scrolling carries no distortion at all.
+    const speed = Math.min(
+      1,
+      Math.max(
+        0,
+        (Math.abs(turboVel) - TURBO_VEL_FLOOR) /
+          (TURBO_VEL_MAX - TURBO_VEL_FLOOR),
+      ),
+    );
     const flat = 1 - 0.75 * speed;
     const stretch = (1 + 0.22 * speed).toFixed(3);
-    const skew = Math.max(-8, Math.min(8, -turboVel * 0.045)).toFixed(2);
+    const skew = (-Math.sign(turboVel) * speed * 8).toFixed(2);
 
     for (let i = 0; i < slides.length; i++) {
       const d = (slideMid[i] - centre) / slideUnit;
@@ -406,9 +418,14 @@ function setupCarousel(root: HTMLElement): void {
   if (!REDUCE && LOOP) {
     let boost = 1;
     let lastWheel = 0;
+    let gestureStart = 0; // when the current run of sustained wheeling began
     let maxSince = 0; // timestamp the ramp first hit TURBO_MAX (0 = not at max)
     let settleTimer = 0;
     let exploding = false;
+    // The payoff module is fetched the moment redline engages - three full
+    // seconds before it can possibly be needed - so detonation never stalls
+    // on a chunk download.
+    let explodeModule: Promise<typeof import("./explode")> | null = null;
 
     // Wheel gone quiet: once the glide has bled off too, re-enable snap and
     // settle onto the nearest card, same as the end of a drag. Deliberately
@@ -446,9 +463,12 @@ function setupCarousel(root: HTMLElement): void {
 
         const now = performance.now();
         if (now - lastWheel > TURBO_GAP_MS) {
+          gestureStart = now;
           boost = 1;
           maxSince = 0;
-        } else {
+        } else if (now - gestureStart > TURBO_RAMP_DELAY_MS) {
+          // Only after a full second of sustained wheeling does the ramp
+          // engage - before that this is ordinary scrolling at 1x.
           boost = Math.min(TURBO_MAX, boost * 1.09 + 0.15);
         }
         lastWheel = now;
@@ -457,10 +477,14 @@ function setupCarousel(root: HTMLElement): void {
         // disable it for the gesture, exactly like drag, restore on settle.
         track.style.scrollSnapType = "none";
         // The cap climbs with the ramp (see TURBO_VEL_MAX) so the deck
-        // audibly shifts gears the longer the wheel keeps spinning.
+        // audibly shifts gears the longer the wheel keeps spinning. It only
+        // limits growth: if the deck is still coasting faster than the cap
+        // (fresh flick during an old glide), friction bleeds it down rather
+        // than the clamp cutting it - a hard cut reads as a jerk.
         const velCap = Math.max(
           TURBO_VEL_FLOOR,
           (boost / TURBO_MAX) * TURBO_VEL_MAX,
+          Math.abs(turboVel),
         );
         turboVel = Math.max(
           -velCap,
@@ -468,19 +492,28 @@ function setupCarousel(root: HTMLElement): void {
         );
 
         if (boost >= TURBO_MAX) {
-          if (!maxSince) maxSince = now;
+          if (!maxSince) {
+            maxSince = now;
+            explodeModule ??= import("./explode"); // warm the chunk now
+          }
           root.classList.add("is-redline");
           if (now - maxSince >= TURBO_HOLD_MS) {
             exploding = true;
             clearTimeout(settleTimer);
             root.classList.remove("is-redline");
-            track.style.scrollSnapType = "";
             boost = 1;
             maxSince = 0;
-            turboVel = 0; // freeze the deck for the blast
-            import("./explode").then((m) =>
+            // No hard stop: the deck keeps gliding on friction beneath the
+            // blast (freezing it - or re-enabling mandatory snap, which
+            // yanks to the nearest card - read as a stall right before the
+            // explosion). Snap and settle come back after the rebuild.
+            (explodeModule ?? import("./explode")).then((m) =>
               m.explodeSite(() => {
                 exploding = false;
+                turboVel = 0;
+                track.style.scrollSnapType = "";
+                current = nearestIndex();
+                scrollToIndex(current);
               }),
             );
           }
