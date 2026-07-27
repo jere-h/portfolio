@@ -35,6 +35,25 @@ const REDUCE = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const IDLE_FRAMES = 30;
 const SETTLE_FRAMES = 3; // frames of stillness before a loop re-centre jump
 
+// Turbo wheel tuning (see the wheel section in setupCarousel).
+const TURBO_MAX = 9; // top ramp multiplier
+// A pause longer than this resets the ramp. Generous on purpose: spinning
+// a physical wheel hard means flick - regrip - flick, with 200-500ms
+// between flicks, and those must all read as one sustained gesture.
+const TURBO_GAP_MS = 600;
+const TURBO_SETTLE_MS = 450; // wheel quiet this long -> snap to a card
+const TURBO_HOLD_MS = 3000; // time pinned at max before the site gives up
+const TURBO_GAIN = 0.35; // wheel px -> velocity bump
+// Speed is bounded by a cap that GROWS with the ramp, from FLOOR (a relaxed
+// one-notch pace) up to VEL_MAX (~11000px/s - several viewport widths per
+// second). Tying the cap to the ramp is what makes the acceleration visible:
+// sustained spinning always saturates the cap, so if the cap were flat the
+// deck would hit terminal velocity on the second notch and the whole ramp
+// would be imperceptible.
+const TURBO_VEL_MAX = 185; // px per 60fps-frame at full ramp
+const TURBO_VEL_FLOOR = 60; // px per 60fps-frame cap at 1x
+const TURBO_FRICTION = 0.92; // per-frame decay -> ~1s coast after release
+
 export function initCarousel(): void {
   document
     .querySelectorAll<HTMLElement>("[data-carousel]")
@@ -115,14 +134,36 @@ function setupCarousel(root: HTMLElement): void {
     return Math.max(0, Math.min(max, left));
   }
 
+  // Slide midpoints and track width in scroll coordinates, cached so the
+  // per-frame work below never queries layout (27 getBoundingClientRect
+  // calls per frame forced a reflow mid-scroll and read as jank). The
+  // coverflow transforms never affect layout, so these only change on
+  // resize; card widths are fixed by CSS, so image loads don't move them.
+  let slideMid: number[] = [];
+  let slideUnit = 1;
+  let trackW = 0;
+  let bandW = 0; // width of one full deck of cards - the invisible-jump unit
+  let bandHome = 0; // scroll offset that centres the first real slide
+  function cacheGeometry(): void {
+    slideMid = slides.map((s) => s.offsetLeft + s.offsetWidth / 2);
+    slideUnit =
+      slides.length > 1
+        ? Math.abs(slideMid[1] - slideMid[0])
+        : slides[0].offsetWidth || 1;
+    trackW = track.clientWidth;
+    if (LOOP) {
+      bandW = slideMid[base + n] - slideMid[base];
+      bandHome = centreOffset(base);
+    }
+  }
+  cacheGeometry();
+
   function nearestIndex(): number {
-    const rect = track.getBoundingClientRect();
-    const centre = rect.left + rect.width / 2;
+    const centre = track.scrollLeft + trackW / 2;
     let best = 0;
     let bestDist = Infinity;
-    for (let i = 0; i < slides.length; i++) {
-      const r = slides[i].getBoundingClientRect();
-      const dist = Math.abs(r.left + r.width / 2 - centre);
+    for (let i = 0; i < slideMid.length; i++) {
+      const dist = Math.abs(slideMid[i] - centre);
       if (dist < bestDist) {
         bestDist = dist;
         best = i;
@@ -149,22 +190,27 @@ function setupCarousel(root: HTMLElement): void {
 
   function applyCoverflow(): void {
     if (REDUCE) return;
-    const rect = track.getBoundingClientRect();
-    const centre = rect.left + rect.width / 2;
-    const unit =
-      slides.length > 1
-        ? Math.abs(slides[1].offsetLeft - slides[0].offsetLeft)
-        : slides[0].offsetWidth || 1;
+    const centre = track.scrollLeft + trackW / 2;
+
+    // Speed styling: as turbo velocity climbs, the 3D rotation flattens out
+    // and the cards stretch and shear along the direction of travel - the
+    // classic motion-streak cue. This is what makes "too fast" *look* too
+    // fast, and it costs nothing: the same transform string was being
+    // written every frame anyway.
+    const speed = Math.min(1, Math.abs(turboVel) / TURBO_VEL_MAX);
+    const flat = 1 - 0.75 * speed;
+    const stretch = (1 + 0.22 * speed).toFixed(3);
+    const skew = Math.max(-8, Math.min(8, -turboVel * 0.045)).toFixed(2);
 
     for (let i = 0; i < slides.length; i++) {
-      const r = slides[i].getBoundingClientRect();
-      const d = (r.left + r.width / 2 - centre) / unit;
+      const d = (slideMid[i] - centre) / slideUnit;
       const ad = Math.min(Math.abs(d), 2.4);
       const scale = 1 - ad * 0.085; // centre 1.0 -> ~0.8 at the far edges
-      const rot = Math.max(-46, Math.min(46, -d * 20)); // rotate toward centre
-      const opacity = Math.max(0.4, 1 - ad * 0.32);
+      const rot = Math.max(-46, Math.min(46, -d * 20)) * flat;
+      // Dim the wings less at speed so passing cards don't strobe.
+      const opacity = Math.max(0.4, 1 - ad * 0.32 * (1 - 0.5 * speed));
       const el = inners[i];
-      el.style.transform = `perspective(1400px) rotateY(${rot.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
+      el.style.transform = `perspective(1400px) rotateY(${rot.toFixed(2)}deg) scale(${scale.toFixed(3)}) scaleX(${stretch}) skewX(${skew}deg)`;
       el.style.opacity = opacity.toFixed(3);
       el.style.zIndex = String(100 - Math.round(ad * 10));
     }
@@ -197,12 +243,12 @@ function setupCarousel(root: HTMLElement): void {
     if (turboVel === 0) return;
     track.scrollLeft += turboVel * dt;
     if (LOOP) {
-      const w = slides[base + n].offsetLeft - slides[base].offsetLeft;
-      const home = centreOffset(base);
-      while (track.scrollLeft > home + w / 2) track.scrollLeft -= w;
-      while (track.scrollLeft < home - w / 2) track.scrollLeft += w;
+      while (track.scrollLeft > bandHome + bandW / 2)
+        track.scrollLeft -= bandW;
+      while (track.scrollLeft < bandHome - bandW / 2)
+        track.scrollLeft += bandW;
     }
-    turboVel *= Math.pow(0.9, dt);
+    turboVel *= Math.pow(TURBO_FRICTION, dt);
     if (Math.abs(turboVel) < 0.4) turboVel = 0;
   }
 
@@ -355,16 +401,8 @@ function setupCarousel(root: HTMLElement): void {
   // with a friction glide - continuous motion the compositor can keep painted.
   //
   // Skipped under reduced motion (the deck keeps native scrolling) and for
-  // single-card decks (nothing to race through).
-  const TURBO_MAX = 9; // top ramp multiplier
-  // A pause longer than this resets the ramp. Generous on purpose: spinning
-  // a physical wheel hard means flick - regrip - flick, with 200-500ms
-  // between flicks, and those must all read as one sustained gesture.
-  const TURBO_GAP_MS = 600;
-  const TURBO_SETTLE_MS = 450; // wheel quiet this long -> snap to a card
-  const TURBO_HOLD_MS = 3000; // time pinned at max before the site gives up
-  const TURBO_GAIN = 0.35; // wheel px -> velocity, tuned so 1 notch ~ 1 card
-  const TURBO_VEL_MAX = 85; // px/frame @60fps (~5100px/s) - the "max speed"
+  // single-card decks (nothing to race through). Tuning constants live at
+  // the top of this module.
   if (!REDUCE && LOOP) {
     let boost = 1;
     let lastWheel = 0;
@@ -411,16 +449,22 @@ function setupCarousel(root: HTMLElement): void {
           boost = 1;
           maxSince = 0;
         } else {
-          boost = Math.min(TURBO_MAX, boost * 1.07 + 0.12);
+          boost = Math.min(TURBO_MAX, boost * 1.09 + 0.15);
         }
         lastWheel = now;
 
         // turboStep's direct scrollLeft writes fight mandatory snap -
         // disable it for the gesture, exactly like drag, restore on settle.
         track.style.scrollSnapType = "none";
+        // The cap climbs with the ramp (see TURBO_VEL_MAX) so the deck
+        // audibly shifts gears the longer the wheel keeps spinning.
+        const velCap = Math.max(
+          TURBO_VEL_FLOOR,
+          (boost / TURBO_MAX) * TURBO_VEL_MAX,
+        );
         turboVel = Math.max(
-          -TURBO_VEL_MAX,
-          Math.min(TURBO_VEL_MAX, turboVel + px * boost * TURBO_GAIN),
+          -velCap,
+          Math.min(velCap, turboVel + px * boost * TURBO_GAIN),
         );
 
         if (boost >= TURBO_MAX) {
@@ -470,6 +514,7 @@ function setupCarousel(root: HTMLElement): void {
   track.addEventListener("scroll", wake, { passive: true });
   window.addEventListener("resize", () => {
     // Keep the centred card centred as the layout reflows.
+    cacheGeometry();
     track.scrollLeft = centreOffset(current);
     wake();
   });
