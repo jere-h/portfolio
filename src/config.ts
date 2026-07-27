@@ -63,63 +63,63 @@ export const projects: ProjectConfig[] = [
     repo: "undergrad-paths-map",
     title: "Open Doors",
     description:
-      "An interactive map that shows students how each course and internship choice opens or closes their future career paths.",
+      "Interactive map of how course and internship choices affect career paths.",
     featured: true,
   },
   {
     repo: "idea-collider",
     title: "Collider",
     description:
-      "A swipe-to-discover app that smashes concepts together so you can flick through fresh project and startup ideas one card at a time.",
+      "Swipe through random concept pairings to find project and startup ideas.",
     featured: true,
   },
   {
     repo: "fifteen-percent",
     title: "Fifteen Percent",
     description:
-      "A private, on-device tool that walks you through preparing a tax-evasion tip-off to Singapore's IRAS, which can pay a discretionary 15% of the tax it recovers.",
+      "On-device tool for preparing a tax-evasion report to Singapore's IRAS, which can pay 15% of recovered tax.",
     featured: true,
   },
   {
     repo: "smarty-challenge",
     title: "Smarty Challenge",
     description:
-      "A timed mobile quiz app for math problems and riddles, playable solo or pass-the-phone with friends on identical question sets.",
+      "Timed quiz app for math problems and riddles, solo or pass-the-phone.",
     featured: false,
   },
   {
     repo: "skin-concept-arena",
     title: "Skin Concept Arena",
     description:
-      "A community arena where players rank video-game cosmetic skins in head-to-head matchups, giving designers a live read on which concepts fans actually want.",
+      "Head-to-head voting on video-game skin concepts, with live community rankings.",
     featured: false,
   },
   {
     repo: "travel-encounters-playbook",
     title: "Travel Encounters Playbook",
     description:
-      "A pocket playbook of ready-made scripts and rescue phrases that help travelers handle tricky situations abroad with confidence.",
+      "Ready-made scripts and phrases for handling difficult situations abroad.",
     featured: false,
   },
   {
     repo: "the-ordeal",
     title: "The Ordeal",
     description:
-      "A short interactive story game that drops early-career data analysts into no-win workplace dilemmas to reveal what they truly value under pressure.",
+      "Short interactive story that puts data analysts in workplace dilemmas.",
     featured: false,
   },
   {
     repo: "blunt-boot-2026",
     title: "The Blunt Boot Index",
     description:
-      "A tongue-in-cheek statistical bulletin ranking the 2026 FIFA World Cup's most goalless shooters by how many shots they fired without ever scoring.",
+      "Ranking of 2026 World Cup players with the most shots and no goals.",
     featured: false,
   },
   {
     repo: "shape-by-shape",
     title: "Shape by Shape",
     description:
-      "A pass-and-play drawing game that guides players to build a picture one easy shape at a time, then reveals everyone's take on the same prompt side by side.",
+      "Pass-and-play drawing game: build a picture one shape at a time, then compare results.",
     featured: false,
   },
 ];
