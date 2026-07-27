@@ -96,9 +96,11 @@ function setupCarousel(root: HTMLElement): void {
   let raf: number | null = null;
   let idle = 0;
   let lastLeft = -1;
+  let lastTick = 0; // rAF timestamp of the previous frame (0 = loop was asleep)
   let activeSlide = -1;
   let current = base; // logical centred slide index (drives navigation)
   let dragging = false;
+  let turboVel = 0; // turbo-wheel velocity, px per 60fps-frame (see below)
 
   function wake(): void {
     idle = 0;
@@ -185,7 +187,32 @@ function setupCarousel(root: HTMLElement): void {
     }
   }
 
-  function tick(): void {
+  // Advance the turbo-wheel glide by one frame: move by the current velocity
+  // (frame-rate normalised - `dt` is in 60fps-frame units so a 144Hz screen
+  // isn't 2.4x faster), wrap back into the middle clone band whenever the
+  // flight crosses it, and bleed the velocity off with friction. Moving the
+  // deck here, in the same frame that recomputes the coverflow, is what keeps
+  // fast scrolling smooth: wheel events only ever adjust the velocity.
+  function turboStep(dt: number): void {
+    if (turboVel === 0) return;
+    track.scrollLeft += turboVel * dt;
+    if (LOOP) {
+      const w = slides[base + n].offsetLeft - slides[base].offsetLeft;
+      const home = centreOffset(base);
+      while (track.scrollLeft > home + w / 2) track.scrollLeft -= w;
+      while (track.scrollLeft < home - w / 2) track.scrollLeft += w;
+    }
+    turboVel *= Math.pow(0.9, dt);
+    if (Math.abs(turboVel) < 0.4) turboVel = 0;
+  }
+
+  function tick(now: number): void {
+    // Frames vary (display refresh, jank, waking from sleep); clamp so a
+    // long gap can never turn into one giant position jump.
+    const dt = lastTick ? Math.min(3, (now - lastTick) / (1000 / 60)) : 1;
+    lastTick = now;
+    turboStep(dt);
+
     const best = nearestIndex();
     applyCoverflow();
     setActive(best);
@@ -207,6 +234,7 @@ function setupCarousel(root: HTMLElement): void {
       raf = requestAnimationFrame(tick);
     } else {
       raf = null;
+      lastTick = 0;
     }
   }
 
@@ -319,15 +347,24 @@ function setupCarousel(root: HTMLElement): void {
   // three full seconds and the site explodes (see explode.ts). Pausing for a
   // beat drops the ramp back to 1x, so casual scrolling stays calm.
   //
+  // Wheel events never move the deck directly - a notch teleporting the
+  // scroll position hundreds of px between paints reads as chop, and at top
+  // speed outruns the compositor's rasterised tiles (cards blink out into
+  // blank checkerboard). Instead each notch feeds a velocity, capped at
+  // TURBO_VEL_MAX, and turboStep() in the rAF loop integrates it every frame
+  // with a friction glide - continuous motion the compositor can keep painted.
+  //
   // Skipped under reduced motion (the deck keeps native scrolling) and for
   // single-card decks (nothing to race through).
-  const TURBO_MAX = 9; // top speed multiplier
+  const TURBO_MAX = 9; // top ramp multiplier
   // A pause longer than this resets the ramp. Generous on purpose: spinning
   // a physical wheel hard means flick - regrip - flick, with 200-500ms
   // between flicks, and those must all read as one sustained gesture.
   const TURBO_GAP_MS = 600;
   const TURBO_SETTLE_MS = 450; // wheel quiet this long -> snap to a card
   const TURBO_HOLD_MS = 3000; // time pinned at max before the site gives up
+  const TURBO_GAIN = 0.35; // wheel px -> velocity, tuned so 1 notch ~ 1 card
+  const TURBO_VEL_MAX = 85; // px/frame @60fps (~5100px/s) - the "max speed"
   if (!REDUCE && LOOP) {
     let boost = 1;
     let lastWheel = 0;
@@ -335,14 +372,18 @@ function setupCarousel(root: HTMLElement): void {
     let settleTimer = 0;
     let exploding = false;
 
-    // Width of one full deck of cards - the invisible-jump unit.
-    const band = () => slides[base + n].offsetLeft - slides[base].offsetLeft;
-
-    // Wheel gone quiet: re-enable snap and settle onto the nearest card,
-    // same as the end of a drag. Deliberately does NOT reset the ramp -
-    // whether the pause was long enough to lose the boost is judged by the
-    // gap check on the next wheel event, so one threshold owns that call.
+    // Wheel gone quiet: once the glide has bled off too, re-enable snap and
+    // settle onto the nearest card, same as the end of a drag. Deliberately
+    // does NOT reset the ramp - whether the pause was long enough to lose
+    // the boost is judged by the gap check on the next wheel event, so one
+    // threshold owns that call.
     const settleWheel = () => {
+      if (turboVel !== 0) {
+        // Still gliding - a smooth scrollTo now would fight turboStep's
+        // per-frame writes and stutter. Check back shortly.
+        settleTimer = window.setTimeout(settleWheel, 120);
+        return;
+      }
       root.classList.remove("is-redline");
       track.style.scrollSnapType = "";
       current = nearestIndex();
@@ -374,19 +415,13 @@ function setupCarousel(root: HTMLElement): void {
         }
         lastWheel = now;
 
-        // Direct scrollLeft writes fight mandatory snap - disable it for the
-        // gesture, exactly like drag does, and restore it on settle.
+        // turboStep's direct scrollLeft writes fight mandatory snap -
+        // disable it for the gesture, exactly like drag, restore on settle.
         track.style.scrollSnapType = "none";
-        const w = band();
-        // Cap a single event at one full deck so the motion stays readable.
-        track.scrollLeft += Math.max(-w, Math.min(w, px * boost));
-
-        // Turbo can cross a whole clone band between settles, so wrap back
-        // into the middle band mid-flight - identical content on both sides
-        // makes the jump invisible, and the deck never hits its ends.
-        const home = centreOffset(base);
-        while (track.scrollLeft > home + w / 2) track.scrollLeft -= w;
-        while (track.scrollLeft < home - w / 2) track.scrollLeft += w;
+        turboVel = Math.max(
+          -TURBO_VEL_MAX,
+          Math.min(TURBO_VEL_MAX, turboVel + px * boost * TURBO_GAIN),
+        );
 
         if (boost >= TURBO_MAX) {
           if (!maxSince) maxSince = now;
@@ -398,6 +433,7 @@ function setupCarousel(root: HTMLElement): void {
             track.style.scrollSnapType = "";
             boost = 1;
             maxSince = 0;
+            turboVel = 0; // freeze the deck for the blast
             import("./explode").then((m) =>
               m.explodeSite(() => {
                 exploding = false;
