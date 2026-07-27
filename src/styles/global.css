@@ -728,6 +728,15 @@ body::after {
  * [data-reveal] element that scrub-capable browsers keep visible ONLY via
  * its scrub-reveal animation, blanked the whole deck when the shake
  * replaced that animation. Keep effects off [data-reveal] elements. */
+/* While the deck is in motion under the turbo wheel, cards ignore the
+ * pointer: cards sweeping beneath a stationary cursor otherwise fire a
+ * hover storm (mouseenter/leave, :hover shadow + border transitions, tilt
+ * handlers) every few frames. Wheel events still land - they target the
+ * track itself once slides opt out - and clicks come back on settle. */
+.deck-track.is-turbo .deck-slide {
+  pointer-events: none;
+}
+
 [data-carousel].is-redline::after {
   content: "";
   position: fixed;

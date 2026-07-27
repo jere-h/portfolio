@@ -124,6 +124,8 @@ function setupCarousel(root: HTMLElement): void {
   let current = base; // logical centred slide index (drives navigation)
   let dragging = false;
   let turboVel = 0; // turbo-wheel velocity, px per 60fps-frame (see below)
+  let turboEngaged = false; // mirrors turboVel != 0, drives the is-turbo class
+  let lastWheel = 0; // timestamp of the last wheel event feeding the turbo
 
   function wake(): void {
     idle = 0;
@@ -192,17 +194,11 @@ function setupCarousel(root: HTMLElement): void {
     }
   }
 
-  function applyCoverflow(): void {
-    if (REDUCE) return;
-    const centre = track.scrollLeft + trackW / 2;
-
-    // Speed styling: as turbo velocity climbs, the 3D rotation flattens out
-    // and the cards stretch and shear along the direction of travel - the
-    // classic motion-streak cue. This is what makes "too fast" *look* too
-    // fast, and it costs nothing: the same transform string was being
-    // written every frame anyway. Zero below the 1x cruising cap, so plain
-    // pre-ramp scrolling carries no distortion at all.
-    const speed = Math.min(
+  // How far into "too fast" territory the deck currently is, 0..1. Zero
+  // below the 1x cruising cap, so plain pre-ramp scrolling carries no
+  // distortion at all.
+  function speedFactor(): number {
+    return Math.min(
       1,
       Math.max(
         0,
@@ -210,21 +206,57 @@ function setupCarousel(root: HTMLElement): void {
           (TURBO_VEL_MAX - TURBO_VEL_FLOOR),
       ),
     );
-    const flat = 1 - 0.75 * speed;
+  }
+
+  // Last-written style strings, so a frame that computes the same values
+  // writes nothing (a no-op write still dirties style and forces a recalc
+  // of that element). At full speed every card converges to the SAME flat,
+  // undimmed, streaked state, so the whole per-frame styling pass becomes
+  // write-free right when the frame budget is tightest.
+  const lastTransform: string[] = new Array(inners.length).fill("");
+  const lastOpacity: string[] = new Array(inners.length).fill("");
+  const lastZ: string[] = new Array(inners.length).fill("");
+
+  function applyCoverflow(): void {
+    if (REDUCE) return;
+    const centre = track.scrollLeft + trackW / 2;
+
+    // Speed styling: as turbo velocity climbs, the 3D rotation flattens all
+    // the way out, the depth scaling and wing dimming lift to uniform, and
+    // the cards stretch and shear along the direction of travel - the
+    // classic motion-streak cue. Full convergence (rather than partial)
+    // does double duty: rotating cards strobe at high speed (temporal
+    // aliasing - the eye samples a spinning card in a different pose each
+    // frame), while a flat identical ribbon reads as continuous motion.
+    const speed = speedFactor();
+    const flat = 1 - speed;
     const stretch = (1 + 0.22 * speed).toFixed(3);
     const skew = (-Math.sign(turboVel) * speed * 8).toFixed(2);
 
     for (let i = 0; i < slides.length; i++) {
       const d = (slideMid[i] - centre) / slideUnit;
       const ad = Math.min(Math.abs(d), 2.4);
-      const scale = 1 - ad * 0.085; // centre 1.0 -> ~0.8 at the far edges
+      const scale = 1 - ad * 0.085 * flat; // centre 1.0 -> ~0.8 at the edges
       const rot = Math.max(-46, Math.min(46, -d * 20)) * flat;
-      // Dim the wings less at speed so passing cards don't strobe.
-      const opacity = Math.max(0.4, 1 - ad * 0.32 * (1 - 0.5 * speed));
+      const opacity = Math.max(0.4, 1 - ad * 0.32 * flat);
       const el = inners[i];
-      el.style.transform = `perspective(1400px) rotateY(${rot.toFixed(2)}deg) scale(${scale.toFixed(3)}) scaleX(${stretch}) skewX(${skew}deg)`;
-      el.style.opacity = opacity.toFixed(3);
-      el.style.zIndex = String(100 - Math.round(ad * 10));
+      const transform = `perspective(1400px) rotateY(${rot.toFixed(2)}deg) scale(${scale.toFixed(3)}) scaleX(${stretch}) skewX(${skew}deg)`;
+      if (transform !== lastTransform[i]) {
+        lastTransform[i] = transform;
+        el.style.transform = transform;
+      }
+      const op = opacity.toFixed(3);
+      if (op !== lastOpacity[i]) {
+        lastOpacity[i] = op;
+        el.style.opacity = op;
+      }
+      // z-order converges with everything else at speed (flat cards don't
+      // overlap-stack), so this write also goes quiet at top speed.
+      const z = String(100 - Math.round(ad * 10 * flat));
+      if (z !== lastZ[i]) {
+        lastZ[i] = z;
+        el.style.zIndex = z;
+      }
     }
   }
 
@@ -252,7 +284,22 @@ function setupCarousel(root: HTMLElement): void {
   // deck here, in the same frame that recomputes the coverflow, is what keeps
   // fast scrolling smooth: wheel events only ever adjust the velocity.
   function turboStep(dt: number): void {
-    if (turboVel === 0) return;
+    // While the deck is in motion, slides drop pointer-events (see the
+    // is-turbo rule in global.css): cards sweeping under a stationary
+    // cursor otherwise fire a hover storm - mouseenter/leave, :hover
+    // shadow + border transitions, tilt handlers - every few frames,
+    // burning the frame budget on styling nobody can see.
+    if (turboVel === 0) {
+      if (turboEngaged) {
+        turboEngaged = false;
+        track.classList.remove("is-turbo");
+      }
+      return;
+    }
+    if (!turboEngaged) {
+      turboEngaged = true;
+      track.classList.add("is-turbo");
+    }
     track.scrollLeft += turboVel * dt;
     if (LOOP) {
       while (track.scrollLeft > bandHome + bandW / 2)
@@ -260,8 +307,17 @@ function setupCarousel(root: HTMLElement): void {
       while (track.scrollLeft < bandHome - bandW / 2)
         track.scrollLeft += bandW;
     }
-    turboVel *= Math.pow(TURBO_FRICTION, dt);
-    if (Math.abs(turboVel) < 0.4) turboVel = 0;
+    // Cruise control: while the wheel is actively feeding, velocity holds
+    // steady - friction only takes over once input stops. Without this the
+    // speed sawtooths (each event re-pins the cap, friction gnaws it back
+    // down between events), and since the speed styling is derived from
+    // velocity, every card's transform changed every frame even at "constant"
+    // top speed. A steady velocity means steady styling, which the write
+    // caching in applyCoverflow then turns into zero per-frame DOM work.
+    if (performance.now() - lastWheel > 200) {
+      turboVel *= Math.pow(TURBO_FRICTION, dt);
+      if (Math.abs(turboVel) < 0.4) turboVel = 0;
+    }
   }
 
   function tick(now: number): void {
@@ -273,7 +329,12 @@ function setupCarousel(root: HTMLElement): void {
 
     const best = nearestIndex();
     applyCoverflow();
-    setActive(best);
+    // At speed, the active-card bookkeeping would otherwise fire every few
+    // frames: class toggles restart the centred card's sheen animation,
+    // dots strobe, aria-current rewrites - style-recalc churn with no
+    // visual value while the cards are a blur. Frozen past 35% speed; the
+    // settle pass refreshes it the moment things calm down.
+    if (speedFactor() < 0.35) setActive(best);
 
     const moved = track.scrollLeft !== lastLeft;
     lastLeft = track.scrollLeft;
@@ -417,7 +478,6 @@ function setupCarousel(root: HTMLElement): void {
   // the top of this module.
   if (!REDUCE && LOOP) {
     let boost = 1;
-    let lastWheel = 0;
     let gestureStart = 0; // when the current run of sustained wheeling began
     let maxSince = 0; // timestamp the ramp first hit TURBO_MAX (0 = not at max)
     let settleTimer = 0;
