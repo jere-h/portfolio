@@ -720,7 +720,12 @@ body::after {
  * debris reuses the hero glow ramp. Kept unlayered (like the scrub
  * layer above) so these override the [data-reveal] animations.
  * --------------------------------------------------------------- */
-[data-carousel].is-redline .deck-carousel {
+/* The rattle targets .deck-track, NOT .deck-carousel: .deck-carousel is a
+ * [data-reveal] element, and in scrub-capable browsers those are visible
+ * ONLY through their scrub-reveal animation (the base reveal state is
+ * opacity 0). Replacing that animation with the shake would resurface the
+ * hidden state and blank the whole deck the moment redline engages. */
+[data-carousel].is-redline .deck-track {
   animation: deck-redline 90ms linear infinite;
 }
 
@@ -781,10 +786,16 @@ body.boom-shake main {
 /* The scroll-scrub / reveal animations write transform + opacity on
  * [data-reveal] elements, and running animations beat inline styles -
  * they would pin the hero image and heading in place mid-explosion.
- * Parked while exploded; settled elements sit at the same values the
- * animation fill was holding, so nothing visibly jumps. */
+ * Parked while exploded. Crucially, parking the animation resurfaces the
+ * base reveal state (opacity 0, translateY) that the scrub normally
+ * overrides, which would blank these elements outright - so restate the
+ * settled values here. Scattered pieces still win via inline styles, and
+ * everything else (like the deck shell around the flying cards) stays
+ * visible through the blast and the fade-back. */
 .is-exploded [data-reveal] {
   animation: none !important;
+  opacity: 1;
+  transform: none;
 }
 
 @keyframes deck-redline {
