@@ -107,7 +107,24 @@ export function initPointer(): void {
     }
   }
 
+  // The deck marks itself .is-turbo while the turbo wheel has it in flight
+  // (see carousel.ts). Pointer physics freeze for the duration: cards
+  // sweeping under a stationary cursor would otherwise drag this loop's
+  // ~100 getBoundingClientRect reads (forced layout) and per-card --mx/--my
+  // writes (var() invalidation) into every frame of the deck's flight -
+  // and each scroll frame wakes this loop via the scroll listener above.
+  const turboTrack = document.querySelector<HTMLElement>(
+    "[data-carousel-track]",
+  );
+
   function tick(): void {
+    if (turboTrack?.classList.contains("is-turbo")) {
+      idle += 1;
+      if (idle < IDLE_FRAMES) raf = requestAnimationFrame(tick);
+      else raf = null;
+      return;
+    }
+
     let settled = true;
 
     for (const el of glowEls) {
