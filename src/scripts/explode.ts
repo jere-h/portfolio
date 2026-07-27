@@ -2,13 +2,14 @@
  * The turbo-scroll easter egg's payoff: after the deck has been held at
  * maximum wheel speed for three seconds (see carousel.ts), the whole site
  * "explodes" - a flash and debris burst from the centre of the screen, every
- * visible piece of the page is flung outward and tumbles away, then a small
- * note appears with a button that puts everything back together.
+ * visible piece of the page is flung outward and tumbles away. Then, after a
+ * beat of empty page, everything quietly fades back into place by itself -
+ * no dialog, no button, the joke just resets.
  *
  * Pure DOM + CSS (styles in the "turbo-scroll easter egg" section of
  * global.css). The scattered elements just get an inline transform/opacity
  * with a transition, so rebuilding is clearing those styles and letting each
- * piece fly home - no layout is ever actually destroyed, and the carousel's
+ * piece fade home - no layout is ever actually destroyed, and the carousel's
  * own state (scroll position, active card) survives untouched.
  *
  * Loaded lazily by carousel.ts only at the moment of detonation, so regular
@@ -29,6 +30,9 @@ const SCATTER_SELECTOR = [
 ].join(", ");
 
 const DEBRIS_COUNT = 26;
+const FLING_MS = 900; // how long pieces take to leave the screen
+const EMPTY_MS = 1100; // beat of bare page before the fade-back starts
+const FADE_MS = 700; // the fade-back itself
 
 let active = false;
 
@@ -82,47 +86,27 @@ export function explodeSite(onRebuilt: () => void): void {
     const dy = (oy / len) * throwDist + (Math.random() - 0.5) * 200 + 220;
     const rot = ((Math.random() - 0.5) * 720).toFixed(0);
     const scale = (0.4 + Math.random() * 0.4).toFixed(2);
-    el.style.transition =
-      "transform 900ms cubic-bezier(0.3, 0, 0.9, 0.4), opacity 900ms ease-in";
+    el.style.transition = `transform ${FLING_MS}ms cubic-bezier(0.3, 0, 0.9, 0.4), opacity ${FLING_MS}ms ease-in`;
     el.style.transform = `translate(${dx.toFixed(0)}px, ${dy.toFixed(0)}px) rotate(${rot}deg) scale(${scale})`;
     el.style.opacity = "0";
     el.style.pointerEvents = "none";
   }
 
-  // The aftermath note, once the dust has mostly settled.
-  const note = document.createElement("div");
-  note.className = "boom-note";
-  note.setAttribute("role", "alertdialog");
-  note.setAttribute("aria-label", "You found the easter egg - the site exploded");
-  note.innerHTML = `
-    <p class="boom-kicker">critical scroll velocity</p>
-    <p class="boom-title">&#128165; You broke it.</p>
-    <p class="boom-copy">Three full seconds at maximum scroll speed &mdash; the deck never stood a chance. Nice one.</p>
-    <button type="button" class="boom-btn">Rebuild the site</button>
-  `;
-
-  const noteTimer = window.setTimeout(() => {
+  window.setTimeout(() => {
     document.body.classList.remove("boom-shake");
-    document.body.appendChild(note);
-    note.querySelector("button")?.focus();
-  }, 950);
+  }, 700);
 
-  const onKey = (e: KeyboardEvent): void => {
-    if (e.key === "Escape") rebuild();
-  };
+  // After a beat of empty page, fade everything back where it was: transforms
+  // clear instantly (the pieces are invisible, so no visible jump) and only
+  // opacity animates, with a light stagger so the page reassembles softly.
+  window.setTimeout(rebuild, FLING_MS + EMPTY_MS);
 
   function rebuild(): void {
-    window.removeEventListener("keydown", onKey);
-    clearTimeout(noteTimer);
-    note.remove();
     overlay.remove();
     document.body.classList.remove("boom-shake");
 
-    // Send every piece flying back home, then hand inline styles back to
-    // whatever they were before the blast.
     for (const el of pieces) {
-      el.style.transition =
-        "transform 700ms var(--ease-tactile), opacity 500ms ease-out";
+      el.style.transition = `opacity ${FADE_MS}ms ease ${Math.round(Math.random() * 250)}ms`;
       el.style.transform = "";
       el.style.opacity = "";
       el.style.pointerEvents = "";
@@ -136,9 +120,6 @@ export function explodeSite(onRebuilt: () => void): void {
       root.classList.remove("is-exploded");
       active = false;
       onRebuilt();
-    }, 750);
+    }, FADE_MS + 300);
   }
-
-  note.querySelector("button")?.addEventListener("click", rebuild);
-  window.addEventListener("keydown", onKey);
 }

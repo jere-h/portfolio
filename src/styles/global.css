@@ -715,8 +715,7 @@ body::after {
 /* --------------------------------------------------------------- *
  * Turbo-scroll easter egg (carousel.ts + explode.ts). "Redline" is
  * the warning rattle while the wheel is pinned at max speed; the
- * boom-* pieces are the explosion flash, debris, aftershake, and the
- * aftermath note. The scripts gate all of it behind JS + motion-OK,
+ * boom-* pieces are the explosion flash, debris, and aftershake. The scripts gate all of it behind JS + motion-OK,
  * so no reduced-motion rules are needed here. Tokens only - the
  * debris reuses the hero glow ramp. Kept unlayered (like the scrub
  * layer above) so these override the [data-reveal] animations.
@@ -788,65 +787,6 @@ body.boom-shake main {
   animation: none !important;
 }
 
-.boom-note {
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  z-index: 999;
-  width: min(26rem, calc(100vw - 2.5rem));
-  padding: 2.25rem 2rem 2rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-lg);
-  text-align: center;
-  animation: boom-note-in 480ms var(--ease-tactile) both;
-}
-
-.boom-kicker {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-
-.boom-title {
-  margin-top: 0.6rem;
-  font-family: var(--font-display);
-  font-size: 1.9rem;
-  font-weight: 600;
-  line-height: 1.15;
-}
-
-.boom-copy {
-  margin-top: 0.6rem;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: var(--muted);
-}
-
-.boom-btn {
-  margin-top: 1.4rem;
-  padding: 0.65rem 1.4rem;
-  border: none;
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: var(--shadow-md);
-  transition: transform 200ms var(--ease-tactile);
-}
-.boom-btn:hover {
-  transform: scale(1.05);
-}
-.boom-btn:active {
-  transform: scale(0.96);
-}
-
 @keyframes deck-redline {
   0% {
     transform: translate(1.5px, -1px) rotate(0.12deg);
@@ -907,16 +847,5 @@ body.boom-shake main {
   }
   100% {
     transform: none;
-  }
-}
-
-@keyframes boom-note-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -46%) scale(0.85);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
   }
 }
