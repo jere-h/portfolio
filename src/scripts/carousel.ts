@@ -47,7 +47,10 @@ const TURBO_GAP_MS = 600;
 const TURBO_RAMP_DELAY_MS = 1000;
 const TURBO_SETTLE_MS = 450; // wheel quiet this long -> snap to a card
 const TURBO_HOLD_MS = 3000; // time pinned at max before the site gives up
-const TURBO_GAIN = 0.35; // wheel px -> velocity bump
+// Wheel px -> velocity bump. Sized so ONE notch (120px), after the input
+// hold plus the friction glide, travels about one card and snaps to it -
+// sustained spinning still saturates the cap in a few notches.
+const TURBO_GAIN = 0.12;
 // Speed is bounded by a cap that GROWS with the ramp, from FLOOR (a relaxed
 // one-notch pace) up to VEL_MAX (~11000px/s - several viewport widths per
 // second). Tying the cap to the ramp is what makes the acceleration visible:
@@ -314,7 +317,7 @@ function setupCarousel(root: HTMLElement): void {
     // velocity, every card's transform changed every frame even at "constant"
     // top speed. A steady velocity means steady styling, which the write
     // caching in applyCoverflow then turns into zero per-frame DOM work.
-    if (performance.now() - lastWheel > 200) {
+    if (performance.now() - lastWheel > 150) {
       turboVel *= Math.pow(TURBO_FRICTION, dt);
       if (Math.abs(turboVel) < 0.4) turboVel = 0;
     }
